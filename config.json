@@ -1,0 +1,34 @@
+{
+  "page_name": "Lunch Break Lifts",
+  "handle": "@lunch_breaklifts",
+  "niche": "Fitness for busy working adults: short, effective strength and cardio workouts that fit in a lunch break, plus simple training habits for people with full-time jobs.",
+  "audience": "Adults 25-45 with desk jobs who want to get stronger and fitter but only have 30-45 minutes a day.",
+  "tone": "Direct, encouraging, practical. No hype, no guru talk, no shaming.",
+  "posts_per_batch": 7,
+  "model": "claude-sonnet-5-5",
+  "cta_line": "Save this for your next lunch break",
+  "auto_approve": true,
+  "publishing_enabled": true,
+  "timezone": "America/Denver",
+  "instagram_api_version": "v23.0",
+  "image_base_url": "",
+  "exercise_source_url": "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json",
+  "equipment": [
+    "body only",
+    "dumbbell",
+    "kettlebells",
+    "bands"
+  ],
+  "levels": [
+    "beginner",
+    "intermediate"
+  ],
+  "brand": {
+    "background": "#0F1115",
+    "text": "#F4F4F2",
+    "accent": "#C6F432",
+    "muted": "#8A8F98"
+  },
+  "reels": true,
+  "video_base_url": ""
+}
