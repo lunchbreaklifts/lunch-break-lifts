@@ -24,7 +24,7 @@ from zoneinfo import ZoneInfo
 
 import requests
 
-from common import CONFIG, OUTPUT, ROOT, load_posts, save_posts
+from common import CONFIG, OUTPUT, ROOT, SLIDE_SEP, load_posts, save_posts
 
 API = f"https://graph.instagram.com/{CONFIG.get('instagram_api_version', 'v23.0')}"
 TZ = ZoneInfo(CONFIG.get("timezone", "America/Denver"))
@@ -104,10 +104,21 @@ class Instagram:
         self.wait_until_ready(container, "reel", tries=90)  # video processing can take a few minutes
         return self.call("POST", f"{self.user_id}/media_publish", creation_id=container)["id"]
 
-    def publish_carousel(self, image_urls, caption):
+    def add_image(self, url, alt):
+        """Upload one carousel slide, with alt text for screen readers when Instagram accepts it."""
+        if alt:
+            try:
+                return self.call("POST", f"{self.user_id}/media", image_url=url,
+                                 is_carousel_item="true", alt_text=alt[:1000])["id"]
+            except RuntimeError as e:
+                print(f"    alt text not accepted ({e}); uploading without it.")
+        return self.call("POST", f"{self.user_id}/media", image_url=url, is_carousel_item="true")["id"]
+
+    def publish_carousel(self, image_urls, caption, alts=None):
         child_ids = []
+        alts = alts or []
         for i, url in enumerate(image_urls, start=1):
-            cid = self.call("POST", f"{self.user_id}/media", image_url=url, is_carousel_item="true")["id"]
+            cid = self.add_image(url, alts[i - 1] if i <= len(alts) else "")
             self.wait_until_ready(cid, f"slide {i}")
             child_ids.append(cid)
             print(f"    uploaded slide {i}/{len(image_urls)}")
@@ -145,6 +156,7 @@ def main():
     base = image_base_url()
     urls = [f"{base}/{s.relative_to(ROOT).as_posix()}" for s in slides]
     caption = f"{post['caption']}\n\n{post['hashtags']}"[:CAPTION_LIMIT]
+    alts = alt_texts(post, len(slides))
 
     # Alternate formats: every other post goes out as a Reel when one was rendered.
     published_count = sum(1 for r in rows if r["status"].lower() == "published")
@@ -180,9 +192,9 @@ def main():
             media_id = ig.publish_reel(reel_url, caption)
         except RuntimeError as e:
             print(f"    Reel failed ({e}); posting as a carousel instead.")
-            media_id = ig.publish_carousel(urls, caption)
+            media_id = ig.publish_carousel(urls, caption, alts)
     else:
-        media_id = ig.publish_carousel(urls, caption)
+        media_id = ig.publish_carousel(urls, caption, alts)
     post["status"] = "published"
     post["published_at"] = datetime.now(TZ).isoformat(timespec="seconds")
     post["media_id"] = media_id
@@ -190,6 +202,17 @@ def main():
     save_posts(rows)
     print(f"Published as a {'reel' if reel_url else 'carousel'}! Media ID {media_id}")
     cleanup_old_media(rows)
+
+
+def alt_texts(post, count):
+    """Alt text for each slide image: the words on that slide, so screen readers can read it."""
+    page = CONFIG.get("page_name", "Lunch Break Lifts")
+    body = [t.strip() for t in post["slides"].split(SLIDE_SEP) if t.strip()]
+    alts = [f"{page} cover slide: {post['hook']}"]
+    alts += [f"Slide {i + 2}: {t}" for i, t in enumerate(body)]
+    while len(alts) < count:
+        alts.append(f"{page} closing slide: follow {CONFIG.get('handle', '')} for a new lunch break workout every day.")
+    return alts[:count]
 
 
 def cleanup_old_media(rows, keep_days=10):
