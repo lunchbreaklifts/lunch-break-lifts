@@ -40,7 +40,7 @@ jobs:
         run: python generate_ideas.py
 
       - name: Render slides
-        run: python render_slides.py
+        run: python render_slides.py --stories
 
       - name: Save to repo
         run: |
