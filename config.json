@@ -30,5 +30,6 @@
     "muted": "#8A8F98"
   },
   "reels": true,
-  "video_base_url": ""
+  "video_base_url": "",
+  "stories": true
 }

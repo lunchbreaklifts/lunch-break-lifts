@@ -114,6 +114,11 @@ class Instagram:
                 print(f"    alt text not accepted ({e}); uploading without it.")
         return self.call("POST", f"{self.user_id}/media", image_url=url, is_carousel_item="true")["id"]
 
+    def publish_story(self, image_url):
+        container = self.call("POST", f"{self.user_id}/media", media_type="STORIES", image_url=image_url)["id"]
+        self.wait_until_ready(container, "story")
+        return self.call("POST", f"{self.user_id}/media_publish", creation_id=container)["id"]
+
     def publish_carousel(self, image_urls, caption, alts=None):
         child_ids = []
         alts = alts or []
@@ -201,7 +206,24 @@ def main():
     post["format"] = "reel" if reel_url else "carousel"
     save_posts(rows)
     print(f"Published as a {'reel' if reel_url else 'carousel'}! Media ID {media_id}")
+    share_to_story(ig, post, base)
     cleanup_old_media(rows)
+
+
+def share_to_story(ig, post, base):
+    """Share today's post to the Story too. Never blocks the main post if it fails."""
+    if not CONFIG.get("stories", True):
+        return
+    folder = OUTPUT / post["id"]
+    image = folder / "story.jpg"
+    if not image.exists():
+        image = folder / "slide_01.jpg"  # older posts without a story image: Instagram fits the cover
+    url = f"{base}/{image.relative_to(ROOT).as_posix()}"
+    try:
+        story_id = ig.publish_story(url)
+        print(f"    shared to Story ({story_id})")
+    except Exception as e:
+        print(f"    couldn't share to Story ({e}); the post itself is fine.")
 
 
 def alt_texts(post, count):

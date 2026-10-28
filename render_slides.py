@@ -5,16 +5,19 @@ Render every "approved" post in posts.csv into Instagram carousel images.
 Output for each post goes to output/<post id>/:
     slide_01.jpg ... slide_NN.jpg   (1080x1350 JPEG, Instagram's 4:5 portrait size;
                                      the Instagram API only accepts JPEG)
+    story.jpg                        (1080x1920 JPEG shared to the Story on posting day)
     caption.txt                      (caption + hashtags, for manual posting)
 
 Rendered posts are marked "rendered" and join the posting queue.
 To re-render a post, set its status back to "approved".
 
 Usage:
-    python render_slides.py
+    python render_slides.py            # render approved posts
+    python render_slides.py --stories  # also add story.jpg to queued posts that don't have one
 """
 
 import html
+import sys
 
 from playwright.sync_api import sync_playwright
 
@@ -89,10 +92,49 @@ def cta_slide():
     """)
 
 
+STORY_W, STORY_H = 1080, 1920
+
+STORY_CSS = BASE_CSS.replace(f"height: {HEIGHT}px", f"height: {STORY_H}px").replace(
+    "padding: 96px 90px 80px", "padding: 270px 90px 300px")  # keep clear of Instagram's top and bottom bars
+STORY_CSS += f"""
+.label {{ display: inline-block; background: {B['accent']}; color: {B['background']}; font-size: 40px;
+          font-weight: 700; letter-spacing: 2px; padding: 14px 26px; margin-bottom: 56px; align-self: flex-start; }}
+.sub {{ font-size: 48px; margin-top: 56px; color: {B['muted']}; font-weight: 500; }}
+.sub b {{ color: {B['accent']}; }}
+"""
+
+
+def story_slide(hook):
+    return (f"<!doctype html><html><head><meta charset='utf-8'><style>{STORY_CSS}</style></head><body>"
+            f"<div class='top'><span>{html.escape(CONFIG['page_name'].upper())}</span></div>"
+            f"<div class='main'><div class='label'>NEW POST</div>"
+            f"<div class='hook'>{html.escape(hook)}</div>"
+            f"<div class='sub'>It's up on the page now.</div></div>"
+            f"<div class='bottom'><span>{html.escape(CONFIG['handle'])}</span><span></span></div>"
+            f"</body></html>")
+
+
+def render_story(browser, row, out_dir):
+    tab = browser.new_page(viewport={"width": STORY_W, "height": STORY_H})
+    tab.set_content(story_slide(row["hook"]), wait_until="networkidle")
+    tab.evaluate(FIT_JS)
+    tab.screenshot(path=str(out_dir / "story.jpg"), type="jpeg", quality=92)
+    tab.close()
+
+
+def backfill_stories(browser, rows):
+    for row in rows:
+        out_dir = OUTPUT / row["id"]
+        if row["status"].lower() == "rendered" and out_dir.exists() and not (out_dir / "story.jpg").exists():
+            render_story(browser, row, out_dir)
+            print(f"  [{row['id']}] added story image")
+
+
 def main():
     rows = load_posts()
     todo = [r for r in rows if r["status"].lower() == "approved"]
-    if not todo:
+    stories = "--stories" in sys.argv and CONFIG.get("stories", True)
+    if not todo and not stories:
         print('No posts with status "approved". Nothing to render.')
         return
 
@@ -109,7 +151,7 @@ def main():
 
             out_dir = OUTPUT / row["id"]
             out_dir.mkdir(parents=True, exist_ok=True)
-            for old in list(out_dir.glob("slide_*")) + list(out_dir.glob("reel*")):
+            for old in list(out_dir.glob("slide_*")) + list(out_dir.glob("reel*")) + list(out_dir.glob("story*")):
                 old.unlink()
 
             for i, slide_html in enumerate(slides, start=1):
@@ -121,6 +163,9 @@ def main():
                 tab.set_content(cover_slide(row["hook"], swipe=False), wait_until="networkidle")
                 tab.evaluate(FIT_JS)
                 tab.screenshot(path=str(out_dir / "reel_cover.jpg"), type="jpeg", quality=92)
+
+            if CONFIG.get("stories", True):
+                render_story(browser, row, out_dir)
 
             (out_dir / "caption.txt").write_text(
                 f"{row['caption']}\n\n{row['hashtags']}\n", encoding="utf-8"
@@ -138,6 +183,8 @@ def main():
             row["status"] = "rendered"
             print(f"  [{row['id']}] {len(slides)} slides{reel_note} -> {out_dir.relative_to(ROOT)}")
 
+        if stories:
+            backfill_stories(browser, rows)
         browser.close()
 
     save_posts(rows)
