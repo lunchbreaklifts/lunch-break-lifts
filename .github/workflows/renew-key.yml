@@ -1,0 +1,39 @@
+name: Renew Instagram key
+
+# Every Wednesday (cron is UTC). Instagram keys last 60 days; renewing weekly keeps
+# it fresh with plenty of margin. Also runnable by hand from the Actions tab.
+on:
+  schedule:
+    - cron: "29 16 * * 3"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  renew:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install requests
+
+      - name: Renew and save key
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "GH_SECRETS_TOKEN secret is missing. See README step 5." >&2
+            exit 1
+          fi
+          NEW_TOKEN="$(python refresh_token.py)"
+          echo "::add-mask::${NEW_TOKEN}"
+          gh secret set IG_ACCESS_TOKEN --repo "${GITHUB_REPOSITORY}" --body "${NEW_TOKEN}"
+          echo "IG_ACCESS_TOKEN secret updated."
