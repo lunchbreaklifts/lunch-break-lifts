@@ -3,3 +3,4 @@ __pycache__/
 .venv/
 income_log.csv
 data/
+summary.md
