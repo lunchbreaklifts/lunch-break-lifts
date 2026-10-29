@@ -52,7 +52,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          url=$(gh issue create --repo "$GITHUB_REPOSITORY" --title "Daily summary $(TZ=America/Denver date +'%a %b %-d')" --body-file summary.md)
+          url=$(gh issue create --repo "$GITHUB_REPOSITORY" --title "Daily summary $(TZ=America/Denver date +'%a %b %-d')" --body-file summary.md --assignee "$GITHUB_REPOSITORY_OWNER")
           gh issue close "$url" --repo "$GITHUB_REPOSITORY"
           rm summary.md
 
