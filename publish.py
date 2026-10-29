@@ -96,11 +96,11 @@ class Instagram:
             time.sleep(5)
         raise RuntimeError(f"Timed out waiting for {label} to process.")
 
-    def publish_reel(self, video_url, caption):
-        container = self.call(
-            "POST", f"{self.user_id}/media",
-            media_type="REELS", video_url=video_url, caption=caption, share_to_feed="true",
-        )["id"]
+    def publish_reel(self, video_url, caption, cover_url=""):
+        params = dict(media_type="REELS", video_url=video_url, caption=caption, share_to_feed="true")
+        if cover_url:
+            params["cover_url"] = cover_url  # grid thumbnail matches the carousel covers
+        container = self.call("POST", f"{self.user_id}/media", **params)["id"]
         self.wait_until_ready(container, "reel", tries=90)  # video processing can take a few minutes
         return self.call("POST", f"{self.user_id}/media_publish", creation_id=container)["id"]
 
@@ -194,7 +194,15 @@ def main():
     ig = Instagram(user_id, token)
     if reel_url:
         try:
-            media_id = ig.publish_reel(reel_url, caption)
+            cover = OUTPUT / post["id"] / "reel_cover.jpg"
+            cover_url = f"{base}/{cover.relative_to(ROOT).as_posix()}" if cover.exists() else ""
+            try:
+                media_id = ig.publish_reel(reel_url, caption, cover_url)
+            except RuntimeError as e:
+                if not cover_url:
+                    raise
+                print(f"    Reel with custom cover failed ({e}); trying without the cover.")
+                media_id = ig.publish_reel(reel_url, caption)
         except RuntimeError as e:
             print(f"    Reel failed ({e}); posting as a carousel instead.")
             media_id = ig.publish_carousel(urls, caption, alts)

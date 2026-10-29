@@ -72,7 +72,7 @@ def load_state():
     try:
         return json.loads(STATE.read_text(encoding="utf-8"))
     except (FileNotFoundError, ValueError):
-        return {"handled": {}, "log": []}
+        return {"handled": {}, "log": [], "followers": {}}
 
 
 def save_state(state):
@@ -80,6 +80,7 @@ def save_state(state):
     cutoff = (datetime.now(TZ) - timedelta(days=30)).isoformat()
     state["handled"] = {k: v for k, v in state["handled"].items() if v.get("at", "") >= cutoff}
     state["log"] = [e for e in state["log"] if e.get("at", "") >= cutoff][-300:]
+    state.setdefault("followers", {})  # one number per day, kept forever (tiny)
     STATE.write_text(json.dumps(state, indent=1), encoding="utf-8")
 
 
@@ -206,14 +207,63 @@ def run_replies(token, state):
     return me
 
 
+def growth(history, now):
+    """Text like ' (+3 today, +12 this week)'."""
+    today = history.get(now.date().isoformat())
+    if today is None:
+        return ""
+    parts = []
+    for label, days in (("today", 1), ("this week", 7)):
+        before = history.get((now.date() - timedelta(days=days)).isoformat())
+        if before is not None:
+            parts.append(f"{today - before:+d} {label}")
+    return f" ({', '.join(parts)})" if parts else ""
+
+
+def week_in_review(token, posts, now, history):
+    from insights import METRICS, fetch
+    week_ago = (now - timedelta(days=7)).date().isoformat()
+    recent = [p for p in posts if p["published_at"][:10] > week_ago]
+    lines = ["", "## Week in review"]
+    start = history.get(week_ago)
+    end = history.get(now.date().isoformat())
+    if start is not None and end is not None:
+        lines.append(f"Followers: {start} → {end} ({end - start:+d})")
+    scored = []
+    for p in recent:
+        try:
+            m = fetch(p["media_id"], token)
+        except Exception:
+            continue
+        score = m.get("saved", 0) * 4 + m.get("shares", 0) * 4 + m.get("comments", 0) * 2 + m.get("likes", 0)
+        scored.append((score, p, m))
+    if not scored:
+        lines.append("No post stats yet.")
+        return lines
+    scored.sort(key=lambda x: x[0], reverse=True)
+    total_views = sum(m.get("views", 0) for _, _, m in scored)
+    lines.append(f"{len(scored)} posts, {total_views} views total.")
+    best, worst = scored[0], scored[-1]
+    lines.append(f"**Best:** {best[1]['hook']} ({best[1].get('format') or 'post'}): "
+                 + " · ".join(f"{k} {best[2].get(k, 0)}" for k in METRICS))
+    if len(scored) > 1:
+        lines.append(f"**Weakest:** {worst[1]['hook']}: views {worst[2].get('views', 0)}")
+    lines.append("The robot feeds these into next week's posts automatically.")
+    return lines
+
+
 def write_summary(token, state, me):
     from insights import METRICS, fetch
     now = datetime.now(TZ)
     since = (now - timedelta(days=1)).isoformat()
     lines = [f"# Daily summary for {CONFIG['handle']}, {now:%a %b %-d}", ""]
 
+    history = state.setdefault("followers", {})
+    if me and isinstance(me.get("followers_count"), int):
+        history[now.date().isoformat()] = me["followers_count"]
     if me:
-        lines.append(f"**Followers:** {me.get('followers_count', '?')}  |  **Posts:** {me.get('media_count', '?')}")
+        count = me.get("followers_count", "?")
+        lines.append(f"**Followers:** {count}{growth(history, now)}  |  **Posts:** {me.get('media_count', '?')}")
         lines.append("")
 
     posts = [p for p in load_posts() if p["status"].lower() == "published" and p["media_id"]]
@@ -243,8 +293,14 @@ def write_summary(token, state, me):
         lines += [f"- @{e['user']}: \"{e['comment']}\"  \n  ↳ {e['reply']}" for e in replied]
     lines += ["", "Check your Instagram DMs too. The robot doesn't read or answer those."]
 
+    if now.weekday() == 6:  # Sunday
+        lines += week_in_review(token, posts, now, history)
+
     queue = sum(1 for p in load_posts() if p["status"].lower() == "rendered")
     lines += ["", f"_Posts waiting in the queue: {queue}_"]
+    if queue < 2:
+        lines.append("⚠️ The queue is almost empty. The Sunday job refills it; if that job failed, "
+                     "open Actions > Weekly content > Run workflow.")
     SUMMARY_MD.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"Wrote {SUMMARY_MD.name}")
 
@@ -273,6 +329,8 @@ def main():
             except Exception:
                 me = None
         write_summary(token, state, me)
+        if not DRY_RUN:
+            save_state(state)
 
 
 if __name__ == "__main__":
