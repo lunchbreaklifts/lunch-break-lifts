@@ -16,6 +16,7 @@ Usage:
     python publish.py --dry-run  # show what would be published, call nothing
 """
 
+import json
 import os
 import sys
 import time
@@ -66,16 +67,17 @@ def image_base_url():
 
 
 class Instagram:
-    def __init__(self, user_id, token):
+    def __init__(self, user_id, token, api=API):
         self.user_id = user_id
         self.token = token
+        self.api = api
 
     def call(self, method, path, **params):
         params["access_token"] = self.token
         if method == "POST":
-            r = requests.post(f"{API}/{path}", data=params, timeout=60)
+            r = requests.post(f"{self.api}/{path}", data=params, timeout=60)
         else:
-            r = requests.get(f"{API}/{path}", params=params, timeout=60)
+            r = requests.get(f"{self.api}/{path}", params=params, timeout=60)
         try:
             data = r.json()
         except ValueError:
@@ -96,10 +98,14 @@ class Instagram:
             time.sleep(5)
         raise RuntimeError(f"Timed out waiting for {label} to process.")
 
-    def publish_reel(self, video_url, caption, cover_url=""):
+    def publish_reel(self, video_url, caption, cover_url="", audio_id=""):
         params = dict(media_type="REELS", video_url=video_url, caption=caption, share_to_feed="true")
         if cover_url:
             params["cover_url"] = cover_url  # grid thumbnail matches the carousel covers
+        if audio_id:
+            # Our video's own track is silent, so the song plays at full volume.
+            params["audio_configuration"] = json.dumps(
+                {"audio_id": audio_id, "audio_volume": 100, "video_volume": 0})
         container = self.call("POST", f"{self.user_id}/media", **params)["id"]
         self.wait_until_ready(container, "reel", tries=90)  # video processing can take a few minutes
         return self.call("POST", f"{self.user_id}/media_publish", creation_id=container)["id"]
@@ -197,7 +203,9 @@ def main():
             cover = OUTPUT / post["id"] / "reel_cover.jpg"
             cover_url = f"{base}/{cover.relative_to(ROOT).as_posix()}" if cover.exists() else ""
             try:
-                media_id = ig.publish_reel(reel_url, caption, cover_url)
+                media_id = publish_reel_with_music(user_id, post, reel_url, caption, cover_url)
+                if not media_id:
+                    media_id = ig.publish_reel(reel_url, caption, cover_url)
             except RuntimeError as e:
                 if not cover_url:
                     raise
@@ -216,6 +224,33 @@ def main():
     print(f"Published as a {'reel' if reel_url else 'carousel'}! Media ID {media_id}")
     share_to_story(ig, post, base)
     cleanup_old_media(rows)
+
+
+def publish_reel_with_music(user_id, post, reel_url, caption, cover_url):
+    """Post the Reel with a trending song. Returns the media ID, or None to post it without music."""
+    fb_token = os.environ.get("FB_PAGE_TOKEN", "").strip()
+    if not fb_token or not CONFIG.get("reel_music", True):
+        return None
+    try:
+        from audio import mark_used, pick_audio
+        from reel import reading_time
+        body = [t for t in post["slides"].split(SLIDE_SEP) if t.strip()]
+        seconds = reading_time("", first=True) + sum(reading_time(t) for t in body) + reading_time("", last=True)
+        song = pick_audio(user_id, fb_token, seconds, post["hook"])
+        if not song:
+            return None
+        print(f"    music: {song.get('title')} by {song.get('display_artist')}")
+        fb = Instagram(user_id, fb_token, api=f"https://graph.facebook.com/{CONFIG.get('facebook_api_version', 'v23.0')}")
+        media_id = fb.publish_reel(reel_url, caption, cover_url, audio_id=song["audio_id"])
+    except Exception as e:  # music is a bonus; never lose the post over it
+        print(f"    couldn't add music ({e}); posting without it.")
+        return None
+    try:
+        mark_used(song)
+    except Exception:
+        pass
+    post["audio"] = f"{song.get('title')} - {song.get('display_artist')}"
+    return media_id
 
 
 def share_to_story(ig, post, base):
