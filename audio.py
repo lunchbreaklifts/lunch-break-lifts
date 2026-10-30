@@ -37,7 +37,8 @@ SEARCHES = CONFIG.get("audio_searches", ["workout", "gym", "motivation"])
 
 EXPLICIT = re.compile(
     r"f+u+c+k|sh[i1]t|b[i1]tch|\bass\b|asshole|d[i1]ck|pussy|n[i1]gg|wh[o0]re|sl[u]t|"
-    r"\bhoe\b|damn|explicit|\bsex|cocaine|weed|kill",
+    r"\bhoe\b|damn|explicit|\bsex|cocaine|weed|kill|"
+    r"hala madrid|anthem|\bf\.?c\.?\b|lullaby|sleep|rain sounds|white noise|meditation",
     re.IGNORECASE,
 )
 
@@ -121,22 +122,29 @@ def claude_pick(options, hook):
     prompt = f"""Pick background music for an Instagram Reel from a fitness page for busy office workers
 who lift on their lunch break. Today's Reel: "{hook}"
 
-Choose ONE song from this list (title | artist | found via). Prefer songs that are trending,
-upbeat or steady, and fine to play at work. Avoid sad ballads, lullabies, songs known for
-explicit lyrics, sports team anthems, and anything that would feel odd under a workout video.
+Choose ONE song from this list (title | artist | found via). It MUST be energetic or have a
+steady driving beat, suit a gym/workout video, and be fine to play at work. Among those, prefer
+ones found via "trending". Never pick: sad or slow songs, lullabies, love ballads, songs known for
+explicit lyrics, sports team or club anthems, comedy or meme sounds, holiday songs.
 
 {listing}
 
-Reply with only the number of your pick."""
+Reply in this exact form:
+PICK: <number>
+WHY: <a few words>"""
     try:
         resp = anthropic.Anthropic().messages.create(
-            model=CONFIG.get("model", "claude-sonnet-5-5"), max_tokens=20,
+            model=CONFIG.get("model", "claude-sonnet-5-5"), max_tokens=60,
             messages=[{"role": "user", "content": prompt}],
         )
         text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
-        m = re.search(r"\d+", text)
-        if m and int(m.group(0)) < len(options):
-            return options[int(m.group(0))]
+        m = re.search(r"PICK:\s*(\d+)", text) or re.search(r"\d+", text)
+        if m and int(m.group(1) if m.lastindex else m.group(0)) < len(options):
+            pick = options[int(m.group(1) if m.lastindex else m.group(0))]
+            why = re.search(r"WHY:\s*(.+)", text)
+            print(f"    Claude picked '{pick.get('title')}'" + (f" ({why.group(1).strip()})" if why else ""))
+            return pick
+        print(f"    Claude's answer didn't name a song: {text[:80]!r}")
     except Exception as e:  # never block the post over music
         print(f"    Claude couldn't pick a song ({e}); picking from the trending list.")
     return None
