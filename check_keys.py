@@ -25,6 +25,23 @@ def ig():
     return f"@{r['username']}, {r.get('followers_count')} followers"
 
 
+def fb_expiry():
+    tok = os.environ["FB_PAGE_TOKEN"]
+    r = requests.get("https://graph.facebook.com/v23.0/debug_token",
+                     params={"input_token": tok, "access_token": tok}, timeout=30).json()
+    if "error" in r:
+        raise RuntimeError(r["error"].get("message"))
+    d = r.get("data", {})
+    exp = d.get("expires_at", 0)
+    if not d.get("is_valid"):
+        raise RuntimeError("key is not valid")
+    if exp:
+        from datetime import datetime, timezone
+        when = datetime.fromtimestamp(exp, timezone.utc).strftime("%b %d %H:%M UTC")
+        raise RuntimeError(f"key EXPIRES {when}; it needs to be a never-expiring Page key")
+    return f"type {d.get('type')}, never expires"
+
+
 def fb_page():
     r = requests.get(f"https://graph.facebook.com/v23.0/{CONFIG['facebook_page_id']}",
                      params={"fields": "name,instagram_business_account", "access_token": os.environ["FB_PAGE_TOKEN"]},
@@ -54,5 +71,6 @@ def threads():
 
 if __name__ == "__main__":
     results = [check("Instagram key", ig), check("Facebook Page key", fb_page),
+               check("Facebook key lifetime", fb_expiry),
                check("Trending music", music), check("Threads key", threads)]
     print("All good." if all(results) else "Something needs fixing (see FAIL lines).")

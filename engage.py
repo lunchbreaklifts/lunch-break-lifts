@@ -207,6 +207,25 @@ def run_replies(token, state):
     return me
 
 
+def key_warnings():
+    """Warn in the summary if the Facebook key is dead or about to expire."""
+    tok = os.environ.get("FB_PAGE_TOKEN", "").strip()
+    if not tok:
+        return []
+    try:
+        d = requests.get("https://graph.facebook.com/v23.0/debug_token",
+                         params={"input_token": tok, "access_token": tok}, timeout=30).json().get("data", {})
+    except Exception:
+        return []
+    if not d.get("is_valid"):
+        return ["", "⚠️ **The Facebook key stopped working.** Reels still post to Instagram, but without music "
+                "and without the Facebook copy. Ask Claude to renew it."]
+    exp = d.get("expires_at", 0)
+    if exp and exp - datetime.now(TZ).timestamp() < 7 * 86400:
+        return ["", "⚠️ **The Facebook key expires within a week.** Ask Claude to swap in a never-expiring one."]
+    return []
+
+
 def growth(history, now):
     """Text like ' (+3 today, +12 this week)'."""
     today = history.get(now.date().isoformat())
@@ -313,6 +332,8 @@ def write_summary(token, state, me):
 
     if now.weekday() == 6:  # Sunday
         lines += week_in_review(token, posts, now, history)
+
+    lines += key_warnings()
 
     queue = sum(1 for p in load_posts() if p["status"].lower() == "rendered")
     lines += ["", f"_Posts waiting in the queue: {queue}_"]
