@@ -31,5 +31,9 @@
   },
   "reels": true,
   "video_base_url": "",
-  "stories": true
+  "stories": true,
+  "facebook_page_id": "1399198879947563",
+  "facebook_reels": true,
+  "reel_music": true,
+  "reel_cycle": 3
 }

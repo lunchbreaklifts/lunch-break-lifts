@@ -249,6 +249,24 @@ def week_in_review(token, posts, now, history):
     if len(scored) > 1:
         lines.append(f"**Weakest:** {worst[1]['hook']}: views {worst[2].get('views', 0)}")
     lines.append("The robot feeds these into next week's posts automatically.")
+    lines += boost_tip(scored)
+    return lines
+
+
+def boost_tip(scored):
+    """Suggest one post worth a small paid boost. Nothing is spent automatically."""
+    reels = [x for x in scored if (x[1].get("format") or "") == "reel"] or scored
+    score, p, m = reels[0]
+    views = m.get("views", 0) or 0
+    saves_shares = (m.get("saved", 0) or 0) + (m.get("shares", 0) or 0)
+    rate = saves_shares / views if views else 0
+    lines = ["", "### 💸 Boost pick (optional)"]
+    if views >= 100 and rate >= 0.01:
+        lines.append(f"**{p['hook']}** is getting saved and shared ({saves_shares} from {views} views). "
+                     "If you want to try ads, this is the one: open it in the Instagram app, tap **Boost**, "
+                     "pick *More profile visits*, $5/day for 2 days, audience *Automatic*. Log the cost in your ledger.")
+    else:
+        lines.append("Nothing worth paying to boost yet. Wait until a post gets saves and shares on its own.")
     return lines
 
 

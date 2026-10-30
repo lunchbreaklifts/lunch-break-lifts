@@ -169,10 +169,11 @@ def main():
     caption = f"{post['caption']}\n\n{post['hashtags']}"[:CAPTION_LIMIT]
     alts = alt_texts(post, len(slides))
 
-    # Alternate formats: every other post goes out as a Reel when one was rendered.
     published_count = sum(1 for r in rows if r["status"].lower() == "published")
     reel_file = OUTPUT / post["id"] / "reel.mp4"
-    want_reel = CONFIG.get("reels", True) and reel_file.exists() and published_count % 2 == 1
+    # Two Reels for every slideshow: Reels reach new people, slideshows get saved.
+    cycle = int(CONFIG.get("reel_cycle", 3))
+    want_reel = CONFIG.get("reels", True) and reel_file.exists() and published_count % cycle != cycle - 1
     reel_url = ""
     if want_reel and video_base_url():
         reel_url = f"{video_base_url()}/{reel_file.relative_to(ROOT).as_posix()}"
@@ -223,6 +224,9 @@ def main():
     save_posts(rows)
     print(f"Published as a {'reel' if reel_url else 'carousel'}! Media ID {media_id}")
     share_to_story(ig, post, base)
+    if reel_url:
+        share_to_facebook(post, reel_url, caption)
+        save_posts(rows)  # keep the Facebook ID too
     cleanup_old_media(rows)
 
 
@@ -251,6 +255,20 @@ def publish_reel_with_music(user_id, post, reel_url, caption, cover_url):
         pass
     post["audio"] = f"{song.get('title')} - {song.get('display_artist')}"
     return media_id
+
+
+def share_to_facebook(post, reel_url, caption):
+    """Also post the Reel on the Facebook Page. Never blocks the Instagram post."""
+    token = os.environ.get("FB_PAGE_TOKEN", "").strip()
+    if not token or not CONFIG.get("facebook_reels", True):
+        return
+    try:
+        from facebook import share_reel
+        vid = share_reel(reel_url, caption, token)
+        post["facebook_id"] = vid
+        print(f"    shared to Facebook ({vid})")
+    except Exception as e:
+        print(f"    couldn't share to Facebook ({e}); Instagram post is fine.")
 
 
 def share_to_story(ig, post, base):
