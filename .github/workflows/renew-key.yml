@@ -26,6 +26,7 @@ jobs:
       - name: Renew and save key
         env:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
           GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
         run: |
           set -euo pipefail
@@ -37,3 +38,10 @@ jobs:
           echo "::add-mask::${NEW_TOKEN}"
           gh secret set IG_ACCESS_TOKEN --repo "${GITHUB_REPOSITORY}" --body "${NEW_TOKEN}"
           echo "IG_ACCESS_TOKEN secret updated."
+          if [ -n "${THREADS_TOKEN}" ]; then
+            NEW_TH="$(python threads.py --refresh)" && {
+              echo "::add-mask::${NEW_TH}"
+              gh secret set THREADS_TOKEN --repo "${GITHUB_REPOSITORY}" --body "${NEW_TH}"
+              echo "THREADS_TOKEN secret updated."
+            } || echo "Threads key renewal failed; Instagram key is still fine."
+          fi
