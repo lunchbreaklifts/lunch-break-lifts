@@ -226,7 +226,8 @@ def main():
     share_to_story(ig, post, base)
     if reel_url:
         share_to_facebook(post, reel_url, caption)
-        save_posts(rows)  # keep the Facebook ID too
+    share_to_threads(post, urls[0])
+    save_posts(rows)  # keep the Facebook / Threads IDs too
     cleanup_old_media(rows)
 
 
@@ -269,6 +270,20 @@ def share_to_facebook(post, reel_url, caption):
         print(f"    shared to Facebook ({vid})")
     except Exception as e:
         print(f"    couldn't share to Facebook ({e}); Instagram post is fine.")
+
+
+def share_to_threads(post, cover_url):
+    """Post a short text version (with the cover image) on Threads. Never blocks anything."""
+    token = os.environ.get("THREADS_TOKEN", "").strip()
+    if not token or not CONFIG.get("threads", True):
+        return
+    try:
+        from threads import post_thread
+        tid = post_thread(post, cover_url, token)
+        post["threads_id"] = tid
+        print(f"    shared to Threads ({tid})")
+    except Exception as e:
+        print(f"    couldn't share to Threads ({e}); Instagram post is fine.")
 
 
 def share_to_story(ig, post, base):

@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parent
 CONFIG = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
 POSTS_CSV = ROOT / "posts.csv"
 OUTPUT = ROOT / "output"
-FIELDS = ["id", "created", "status", "hook", "slides", "caption", "hashtags", "published_at", "media_id", "format", "audio", "facebook_id"]
+FIELDS = ["id", "created", "status", "hook", "slides", "caption", "hashtags", "published_at", "media_id", "format", "audio", "facebook_id", "threads_id"]
 SLIDE_SEP = " || "
 
 # Status flow: draft -> approved -> rendered -> published
