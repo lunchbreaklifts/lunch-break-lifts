@@ -134,7 +134,7 @@ PICK: <number>
 WHY: <a few words>"""
     try:
         resp = anthropic.Anthropic().messages.create(
-            model=CONFIG.get("model", "claude-sonnet-5-5"), max_tokens=60,
+            model=CONFIG.get("model", "claude-sonnet-5-5"), max_tokens=1500,
             messages=[{"role": "user", "content": prompt}],
         )
         text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
@@ -158,8 +158,9 @@ def pick_audio(ig_user_id, token, reel_seconds, hook=""):
         return None
     choice = claude_pick(options, hook)
     if choice is None:
-        trending = [a for a in options if a["_source"] == "trending"] or options
-        choice = random.choice(trending[:10])
+        # Without Claude's judgment, the workout-search results are the safer fit than raw trending.
+        fitting = [a for a in options if a["_source"] != "trending"] or options
+        choice = random.choice(fitting[:10])
     return choice
 
 
