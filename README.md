@@ -2,11 +2,19 @@
 
 Fully automated content pipeline running free on GitHub Actions:
 
-- **Every Sunday:** Claude writes 7 original fitness carousel posts, and the slides are
-  rendered and queued.
-- **Every day at lunchtime:** the next post in the queue is published to Instagram
-  through the official Instagram API (Instagram Login; no Facebook Page needed).
-- **Every Wednesday:** the Instagram key is renewed automatically so it never expires.
+- **Every Sunday:** Claude writes 7 original fitness posts. Each is rendered as carousel
+  slides, a vertical Reel video, and a Story image, then queued.
+- **Every day at lunchtime:** the next post goes out through the official Instagram API.
+  Two Reels for every carousel. Reels get a trending, clean song picked fresh each day
+  (Instagram Audio API, never repeated within 3 weeks). Each post is also shared to the
+  Instagram Story, Reels are copied to the Lunch Break Lifts Facebook Page, and a short
+  version goes to Threads. Carousel slides get alt text.
+- **3 times a day:** Claude replies to normal comments in the page's voice. Brand offers
+  and injury/medical questions are left for you.
+- **Every night (~8pm):** a summary arrives as a GitHub notification and email:
+  followers, today's post stats, comments that need you, and key warnings. Sundays add a
+  week in review and an optional "boost pick".
+- **Every Wednesday:** the Instagram and Threads keys are renewed automatically.
 
 Workouts are built from real exercises in the open
 [Free Exercise DB](https://github.com/yuhonas/free-exercise-db) (public domain, 870+
@@ -67,12 +75,25 @@ Create a key at https://console.anthropic.com and add a few dollars of credit.
    - `GH_SECRETS_TOKEN`: from step 5.2
 4. Repo > Settings > Actions > General > Workflow permissions > **Read and write**.
 
-### 6. Start it
+### 6. Extra keys (music, Facebook, Threads)
+- `FB_PAGE_TOKEN`: a **never-expiring user key** from the Meta Access Token Debugger
+  (Extend Access Token), with pages_show_list, pages_read_engagement, pages_manage_posts,
+  instagram_basic, instagram_content_publish, business_management. The robot gets the
+  Page key from it on each run. Don't copy keys out of the Graph API Explorer; it swaps
+  in a short key that expires in an hour.
+- `THREADS_TOKEN`: from the app's Threads use case > Settings > User Token Generator
+  (lunch_breaklifts must be a Threads Tester).
+- Any of these can be left out; that feature is just skipped.
+
+### 7. Start it
 Actions tab: run **Weekly content**, then **Daily post** to publish the first one.
 From then on it runs itself.
 
 If a renewal is ever missed and the key expires, generate a new token (step 2.4) and
 replace the `IG_ACCESS_TOKEN` secret.
+
+**Check keys:** Actions > Check keys > Run workflow tests every key (and that the
+Facebook key never expires) without posting anything.
 
 ---
 
@@ -83,6 +104,9 @@ replace the `IG_ACCESS_TOKEN` secret.
 | `"auto_approve": true` | Posts go straight into the queue. Set `false` to review: new posts land as `draft` in `posts.csv`; change to `approved` to queue them. |
 | `"publishing_enabled": false` | Pauses all posting instantly. |
 | `"posts_per_batch"` | Posts generated each Sunday (7 = one a day). |
+| `"reel_cycle": 3` | 2 Reels, then 1 carousel. Set `2` to alternate. |
+| `"reel_music"`, `"facebook_reels"`, `"threads"`, `"stories"` | Set any to `false` to turn that feature off. |
+| `"auto_reply_comments": false` | Stops comment replies (the nightly summary still comes). |
 
 `posts.csv` is the full record: every post, its status, and when it went live.
 To pull a queued post, change its status to `skip` (anything other than `rendered`).
