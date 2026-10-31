@@ -117,7 +117,7 @@ Call decide."""
     for _ in range(3):
         resp = client.messages.create(
             model=CONFIG.get("model", "claude-sonnet-5-5"),
-            max_tokens=600,
+            max_tokens=2000,
             tools=[REPLY_TOOL],
             tool_choice={"type": "auto"},
             messages=[{"role": "user", "content": prompt}],
