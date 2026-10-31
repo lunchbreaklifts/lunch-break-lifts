@@ -32,11 +32,24 @@ def _check(r, step):
     return data
 
 
+def page_token(token, page_id=None):
+    """FB_PAGE_TOKEN may hold either a Page key or a never-expiring user key.
+    Ask Facebook for the Page's own key; a never-expiring user key gives a never-expiring Page key."""
+    page_id = page_id or CONFIG.get("facebook_page_id", "")
+    try:
+        r = requests.get(f"{GRAPH}/{page_id}", params={"fields": "access_token", "access_token": token},
+                         timeout=30).json()
+        return r.get("access_token") or token
+    except Exception:
+        return token
+
+
 def share_reel(video_url, description, token, page_id=None, wait_tries=60):
     """Upload the hosted MP4 as a Reel on the Page. Returns the Facebook video ID."""
     page_id = page_id or CONFIG.get("facebook_page_id", "")
     if not page_id:
         raise RuntimeError('no "facebook_page_id" in config.json')
+    token = page_token(token, page_id)
 
     start = _check(requests.post(f"{GRAPH}/{page_id}/video_reels",
                                  json={"upload_phase": "start", "access_token": token}, timeout=60), "start")

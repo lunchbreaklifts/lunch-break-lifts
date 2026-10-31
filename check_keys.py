@@ -39,7 +39,15 @@ def fb_expiry():
         from datetime import datetime, timezone
         when = datetime.fromtimestamp(exp, timezone.utc).strftime("%b %d %H:%M UTC")
         raise RuntimeError(f"key EXPIRES {when}; it needs to be a never-expiring Page key")
-    return f"type {d.get('type')}, never expires"
+    from facebook import page_token
+    pt = page_token(tok)
+    pd = requests.get("https://graph.facebook.com/v23.0/debug_token",
+                      params={"input_token": pt, "access_token": pt}, timeout=30).json().get("data", {})
+    if pd.get("type") != "PAGE":
+        raise RuntimeError("couldn't get a Page key from it")
+    if pd.get("expires_at"):
+        raise RuntimeError("the Page key it gives expires; the saved key must be the never-expiring one")
+    return f"saved key is a {d.get('type')} key that never expires; Page key OK"
 
 
 def fb_page():
