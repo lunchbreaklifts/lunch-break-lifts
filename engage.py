@@ -306,17 +306,17 @@ def write_summary(token, state, me):
     posts = [p for p in load_posts() if p["status"].lower() == "published" and p["media_id"]]
     today = [p for p in posts if p["published_at"][:10] == now.date().isoformat()]
     if today:
-        p = today[-1]
-        lines.append(f"## Today's post ({p.get('format') or 'post'})")
-        lines.append(f"{p['hook']}")
-        if (p.get("format") or "") == "reel":
-            lines.append(f"🎵 {p['audio']}" if p.get("audio") else "🎵 No music this time (check the Daily post log).")
-        try:
-            m = fetch(p["media_id"], token)
-            lines.append(" · ".join(f"{k} {m.get(k, 0)}" for k in METRICS))
-        except Exception:
-            lines.append("(stats not ready yet)")
-        lines.append("")
+        for p in today:
+            lines.append(f"## Today's post ({p.get('format') or 'post'}, {p['published_at'][11:16]})")
+            lines.append(f"{p['hook']}")
+            if (p.get("format") or "") == "reel":
+                lines.append(f"🎵 {p['audio']}" if p.get("audio") else "🎵 No music this time (check the Daily post log).")
+            try:
+                m = fetch(p["media_id"], token)
+                lines.append(" · ".join(f"{k} {m.get(k, 0)}" for k in METRICS))
+            except Exception:
+                lines.append("(stats not ready yet)")
+            lines.append("")
     else:
         lines += ["## Today's post", "Nothing went out today. Check the Actions tab if that's unexpected.", ""]
 
@@ -339,7 +339,7 @@ def write_summary(token, state, me):
 
     queue = sum(1 for p in load_posts() if p["status"].lower() == "rendered")
     lines += ["", f"_Posts waiting in the queue: {queue}_"]
-    if queue < 2:
+    if queue < 2 * int(CONFIG.get("posts_per_day", 1)):
         lines.append("⚠️ The queue is almost empty. The Sunday job refills it; if that job failed, "
                      "open Actions > Weekly content > Run workflow.")
     SUMMARY_MD.write_text("\n".join(lines) + "\n", encoding="utf-8")

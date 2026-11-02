@@ -73,12 +73,12 @@ POST_TOOL = {
                             "type": "array",
                             "items": {"type": "string"},
                             "minItems": 3,
-                            "maxItems": 6,
-                            "description": "Body slides after the cover. Each max 35 words. One idea per slide.",
+                            "maxItems": 5,
+                            "description": "Body slides after the cover. Each max 22 words, punchy. One idea per slide.",
                         },
                         "caption": {
                             "type": "string",
-                            "description": "Instagram caption, 40-120 words, ends with a question to drive comments.",
+                            "description": "Instagram caption, 40-120 words. First line is a natural search phrase (see rules). Ends with a question to drive comments.",
                         },
                         "hashtags": {
                             "type": "array",
@@ -116,6 +116,16 @@ Write {count} new carousel posts. Mix these formats across the batch:
 - Myth vs. fact
 - A simple habit or scheduling strategy for busy people
 - A checklist or "save this" reference
+
+These go out as Reels: the cover is shown for under 2 seconds and each slide for about
+3 seconds, so slides must be short and punchy (max 22 words) and the hook must stop the scroll.
+
+Search (Instagram search works like Google now):
+- The FIRST LINE of every caption must read naturally AND contain a phrase people actually
+  type into search, e.g. "30 minute dumbbell workout", "lunch break workout", "workout at
+  work", "quick upper body workout", "beginner kettlebell workout", "desk job back pain
+  stretches". Write it like a person would, not a keyword list. Vary the phrase per post.
+- Hashtags: mix 2-3 broad (#workout), 3-4 mid (#lunchbreakworkout), 2-3 specific to the post.
 
 Rules:
 - Original, specific, practical advice. No vague motivation filler.

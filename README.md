@@ -2,14 +2,14 @@
 
 Fully automated content pipeline running free on GitHub Actions:
 
-- **Every Sunday:** Claude writes 7 original fitness posts. Each is rendered as carousel
+- **Every Sunday:** Claude writes 14 original fitness posts (short, punchy slides; captions open with a phrase people search for). Each is rendered as carousel
   slides, a vertical Reel video, and a Story image, then queued.
-- **Every day at lunchtime:** the next post goes out through the official Instagram API.
-  Every post goes out as a Reel (adjustable). Reels get a trending, clean song picked fresh each day
+- **Twice a day (lunch ~12:15 and evening ~6:30, Denver):** the next post goes out through the official Instagram API.
+  Every post goes out as a Reel (adjustable). Reels use a slow zoom on every slide and a short hook, and get a trending, clean song picked fresh each day
   (Instagram Audio API, never repeated within 3 weeks). Each post is also shared to the
   Instagram Story, Reels are copied to the Lunch Break Lifts Facebook Page, and a short
   version goes to Threads. Carousel slides get alt text.
-- **3 times a day:** Claude replies to normal comments in the page's voice. Brand offers
+- **Morning, and about 30 and 90 minutes after each post:** Claude replies to normal comments in the page's voice. Brand offers
   and injury/medical questions are left for you.
 - **Every night (~8pm):** a summary arrives as a GitHub notification and email:
   followers, today's post stats, comments that need you, and key warnings. Sundays add a
@@ -103,7 +103,8 @@ Facebook key never expires) without posting anything.
 |---|---|
 | `"auto_approve": true` | Posts go straight into the queue. Set `false` to review: new posts land as `draft` in `posts.csv`; change to `approved` to queue them. |
 | `"publishing_enabled": false` | Pauses all posting instantly. |
-| `"posts_per_batch"` | Posts generated each Sunday (7 = one a day). |
+| `"posts_per_batch"` | Posts generated each Sunday (14 = two a day). |
+| `"posts_per_day": 2` | Max posts per day (the evening slot skips itself if set to 1). |
 | `"reel_cycle": 1` | Every post is a Reel. Set `3` for 2 Reels then 1 carousel, `2` to alternate. |
 | `"reel_music"`, `"facebook_reels"`, `"threads"`, `"stories"` | Set any to `false` to turn that feature off. |
 | `"auto_reply_comments": false` | Stops comment replies (the nightly summary still comes). |

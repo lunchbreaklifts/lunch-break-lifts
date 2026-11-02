@@ -4,7 +4,7 @@
   "niche": "Fitness for busy working adults: short, effective strength and cardio workouts that fit in a lunch break, plus simple training habits for people with full-time jobs.",
   "audience": "Adults 25-45 with desk jobs who want to get stronger and fitter but only have 30-45 minutes a day.",
   "tone": "Direct, encouraging, practical. No hype, no guru talk, no shaming.",
-  "posts_per_batch": 7,
+  "posts_per_batch": 14,
   "model": "claude-sonnet-5-5",
   "cta_line": "Save this for your next lunch break",
   "auto_approve": true,
@@ -35,5 +35,7 @@
   "facebook_page_id": "1399198879947563",
   "facebook_reels": true,
   "reel_music": true,
-  "reel_cycle": 1
+  "reel_cycle": 1,
+  "posts_per_day": 2,
+  "min_hours_between_posts": 4
 }

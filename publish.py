@@ -148,11 +148,17 @@ def main():
         return
 
     rows = load_posts()
-    today = datetime.now(TZ).date()
-    for r in rows:
-        if r["published_at"] and datetime.fromisoformat(r["published_at"]).astimezone(TZ).date() == today:
-            print(f"Already posted today ([{r['id']}]). Skipping.")
-            return
+    now = datetime.now(TZ)
+    times = [datetime.fromisoformat(r["published_at"]).astimezone(TZ) for r in rows if r["published_at"]]
+    per_day = int(CONFIG.get("posts_per_day", 1))
+    min_gap = float(CONFIG.get("min_hours_between_posts", 4))
+    today_count = sum(1 for t in times if t.date() == now.date())
+    if today_count >= per_day:
+        print(f"Already posted {today_count} today (limit {per_day}). Skipping.")
+        return
+    if times and (now - max(times)).total_seconds() < min_gap * 3600:
+        print(f"Last post was under {min_gap:g} hours ago. Skipping.")
+        return
 
     queue = [r for r in rows if r["status"].lower() == "rendered"]
     if not queue:

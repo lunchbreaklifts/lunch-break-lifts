@@ -22,7 +22,7 @@ import sys
 from playwright.sync_api import sync_playwright
 
 from common import CONFIG, OUTPUT, ROOT, load_posts, save_posts, split_slides
-from reel import make_reel, reading_time
+from reel import VERSION as REEL_VERSION, make_reel, reading_time
 
 WIDTH, HEIGHT = 1080, 1350
 B = CONFIG["brand"]
@@ -122,6 +122,22 @@ def render_story(browser, row, out_dir):
     tab.close()
 
 
+def refresh_reels(rows):
+    """Rebuild queued Reels made in an older style (no browser needed: uses the saved slide images)."""
+    for row in rows:
+        out_dir = OUTPUT / row["id"]
+        if row["status"].lower() != "rendered" or not (out_dir / "reel_cover.jpg").exists():
+            continue
+        vfile = out_dir / "reel_version.txt"
+        if vfile.exists() and vfile.read_text(encoding="utf-8").strip() == REEL_VERSION:
+            continue
+        body = split_slides(row["slides"])[:8]
+        durations = [reading_time(row["hook"], first=True)] + [reading_time(t) for t in body] + [reading_time("", last=True)]
+        frames = [out_dir / "reel_cover.jpg"] + sorted(out_dir.glob("slide_*.jpg"))[1:]
+        if make_reel(out_dir, frames, durations):
+            print(f"  [{row['id']}] Reel rebuilt in the new style ({sum(durations):.0f}s)")
+
+
 def backfill_stories(browser, rows):
     for row in rows:
         out_dir = OUTPUT / row["id"]
@@ -134,6 +150,8 @@ def main():
     rows = load_posts()
     todo = [r for r in rows if r["status"].lower() == "approved"]
     stories = "--stories" in sys.argv and CONFIG.get("stories", True)
+    if "--refresh-reels" in sys.argv and CONFIG.get("reels", True):
+        refresh_reels(rows)
     if not todo and not stories:
         print('No posts with status "approved". Nothing to render.')
         return
