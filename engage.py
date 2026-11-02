@@ -21,6 +21,8 @@ Usage:
 
 import json
 import os
+import random
+import re
 import sys
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -137,6 +139,61 @@ Call decide."""
     return {"action": "skip", "reply": "", "needs_human": False, "reason": "couldn't write a clean reply"}
 
 
+def wants_plan(text):
+    lead = CONFIG.get("lead_magnet", {})
+    kw = lead.get("keyword", "")
+    if not (lead.get("enabled") and kw and re.search(rf"\b{re.escape(kw)}\b", text, re.IGNORECASE)):
+        return False
+    # "LIFT" in caps anywhere, or a short comment that's basically just the keyword.
+    # Avoids DMing someone who wrote "I love to lift on my lunch break too".
+    return bool(re.search(rf"\b{re.escape(kw.upper())}\b", text)) or len(text.strip()) <= len(kw) + 12
+
+
+DM_TEXTS = [
+    "Here's the 30-Day Lunch Break Challenge 💪\n{url}\n\nSave it and start on any Monday. Questions? Just reply here.",
+    "Here you go, all 30 days: {url}\n\nEvery workout fits a lunch break. Reply here if anything's unclear.",
+    "Sent! The full 30-day plan is here: {url}\n\nDay 1 is upper body. Write down your weights, you'll want them on Day 29.",
+]
+PUBLIC_REPLIES = ["Sent it to your DMs 📩", "Check your DMs, it's in there", "Just sent it, check your messages",
+                  "In your DMs now", "Sent 👍 check your messages"]
+
+
+def handle_plan_request(token, state, post, c):
+    """Someone commented the keyword: DM them the plan (once per person) and reply publicly."""
+    lead = CONFIG["lead_magnet"]
+    sent = state.setdefault("dm_sent", {})
+    now = datetime.now(TZ).isoformat(timespec="seconds")
+    entry = {"at": now, "post": post["id"], "user": c["username"], "comment": c["text"][:300],
+             "action": "dm", "reply": "", "needs_human": False, "reason": "asked for the free plan"}
+    if DRY_RUN:
+        print(f"  would DM the plan to @{c['username']}")
+        return False
+    already = c["username"] in sent
+    if not already:
+        try:
+            requests.post(f"{API}/me/messages", params={"access_token": token}, timeout=60,
+                          json={"recipient": {"comment_id": c["id"]},
+                                "message": {"text": random.choice(DM_TEXTS).format(url=lead["url"])}}
+                          ).raise_for_status()
+            sent[c["username"]] = now
+            print(f"  DM'd the plan to @{c['username']}")
+        except Exception as e:
+            print(f"  couldn't DM @{c['username']} ({e}); flagged for you")
+            entry.update(action="skip", needs_human=True, reason="asked for the plan but the DM failed; send it by hand")
+            state["handled"][c["id"]] = {"at": now}
+            state["log"].append(entry)
+            return False
+    reply = "Already in your DMs 👍" if already else random.choice(PUBLIC_REPLIES)
+    try:
+        ig("POST", f"{c['id']}/replies", token, message=reply)
+    except RuntimeError as e:
+        print(f"  public reply failed for @{c['username']}: {e}")
+    entry["reply"] = reply
+    state["handled"][c["id"]] = {"at": now}
+    state["log"].append(entry)
+    return True
+
+
 def collect_comments(token, me, posts):
     now = datetime.now(TZ)
     found = []
@@ -183,6 +240,10 @@ def run_replies(token, state):
         if replied >= MAX_REPLIES_PER_RUN:
             print("  reached the reply limit for this run; the rest wait for the next run.")
             break
+        if wants_plan(c["text"]):
+            if handle_plan_request(token, state, post, c):
+                replied += 1
+            continue
         d = decide(client, post, c)
         entry = {"at": datetime.now(TZ).isoformat(timespec="seconds"), "post": post["id"],
                  "user": c["username"], "comment": c["text"][:300], "action": d["action"],
@@ -273,19 +334,35 @@ def week_in_review(token, posts, now, history):
 
 
 def boost_tip(scored):
-    """Suggest one post worth a small paid boost. Nothing is spent automatically."""
-    reels = [x for x in scored if (x[1].get("format") or "") == "reel"] or scored
-    score, p, m = reels[0]
-    views = m.get("views", 0) or 0
-    saves_shares = (m.get("saved", 0) or 0) + (m.get("shares", 0) or 0)
-    rate = saves_shares / views if views else 0
+    """Suggest at most one post worth a small paid boost: only one that is already beating
+    the page's own average. Nothing is ever spent automatically."""
     lines = ["", "### 💸 Boost pick (optional)"]
-    if views >= 100 and rate >= 0.01:
-        lines.append(f"**{p['hook']}** is getting saved and shared ({saves_shares} from {views} views). "
-                     "If you want to try ads, this is the one: open it in the Instagram app, tap **Boost**, "
-                     "pick *More profile visits*, $5/day for 2 days, audience *Automatic*. Log the cost in your ledger.")
+    def rate(m):
+        v = m.get("views", 0) or 0
+        return ((m.get("saved", 0) or 0) + (m.get("shares", 0) or 0) + (m.get("comments", 0) or 0)) / v if v else 0
+    if len(scored) < 3:
+        lines.append("Not enough posts yet to tell what's working. No boost this week.")
+        return lines
+    avg_views = sum((m.get("views", 0) or 0) for _, _, m in scored) / len(scored)
+    avg_rate = sum(rate(m) for _, _, m in scored) / len(scored)
+    reels = [x for x in scored if (x[1].get("format") or "") == "reel"] or scored
+    best = max(reels, key=lambda x: (rate(x[2]), x[2].get("views", 0)))
+    _, p, m = best
+    views = m.get("views", 0) or 0
+    if views >= max(100, avg_views) and rate(m) >= max(0.01, avg_rate * 1.5):
+        lines += [
+            f"**{p['hook']}** is beating your average ({views} views vs {avg_views:.0f} avg; "
+            f"saves/shares/comments {rate(m):.1%} vs {avg_rate:.1%}). Boosting a post that's already winning is the only kind worth paying for.",
+            "",
+            "If you want to try it, in the Instagram app open that Reel and tap **Boost**:",
+            "- Goal: **More profile visits**",
+            "- Audience: **Create your own**: United States, ages 25-45, interests *Fitness*, *Weight training*, *Physical exercise*",
+            "- Budget: **$5/day for 3 days** ($15 total). Expect roughly $0.50 per profile visit; followers usually cost $1-10 each.",
+            "- Log the $15 in your ledger as a cost. Next week's summary will show whether followers jumped.",
+        ]
     else:
-        lines.append("Nothing worth paying to boost yet. Wait until a post gets saves and shares on its own.")
+        lines.append(f"No post is clearly beating your average yet (avg {avg_views:.0f} views). Paying to boost an "
+                     "average post mostly buys views, not followers, so skip it this week.")
     return lines
 
 
@@ -323,10 +400,14 @@ def write_summary(token, state, me):
     recent = [e for e in state["log"] if e.get("at", "") >= since]
     needs = [e for e in recent if e.get("needs_human")]
     replied = [e for e in recent if e["action"] == "reply"]
+    dms = [e for e in recent if e["action"] == "dm"]
     lines.append(f"## Comments (last 24 hours): {len(recent)} new, {len(replied)} answered by the robot")
     if needs:
         lines += ["", "### 👉 Needs you"]
         lines += [f"- @{e['user']}: \"{e['comment']}\" ({e['reason']})" for e in needs]
+    if dms:
+        lines += ["", f"### 📩 Free plan sent to {len(dms)} people today", "  ".join(f"@{e['user']}" for e in dms)]
+        lines += [f"_Total people who've asked for the plan: {len(state.get('dm_sent', {}))}_"]
     if replied:
         lines += ["", "### Robot replies"]
         lines += [f"- @{e['user']}: \"{e['comment']}\"  \n  ↳ {e['reply']}" for e in replied]

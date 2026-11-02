@@ -10,17 +10,18 @@ Usage:
     python generate_ideas.py 10     # generate 10 posts
 """
 
+import json
 import os
 import re
 import sys
 import uuid
-from datetime import date
+from datetime import date, timedelta
 
 import anthropic
 
 import exercise_db
 from insights import performance_notes
-from common import CONFIG, SLIDE_SEP, load_posts, save_posts
+from common import CONFIG, ROOT, SLIDE_SEP, load_posts, save_posts
 
 HISTORY_LIMIT = 80  # past hooks shown to the model so it avoids repeats
 MAX_ROUNDS = 4      # how many times to ask for replacements when posts fail the voice check
@@ -92,6 +93,10 @@ POST_TOOL = {
                             "items": {"type": "string"},
                             "description": "Exact names, from the exercise list, of every exercise this post mentions. Empty if none.",
                         },
+                        "reply_to": {
+                            "type": "string",
+                            "description": "Only for posts answering a follower question: their username, no @. Otherwise empty.",
+                        },
                     },
                     "required": ["hook", "slides", "caption", "hashtags", "exercises"],
                 },
@@ -102,8 +107,34 @@ POST_TOOL = {
 }
 
 
-def build_prompt(count, past_hooks, exercises):
+def build_prompt(count, past_hooks, exercises, questions=None, window=""):
     history = "\n".join(f"- {h}" for h in past_hooks) or "(none yet)"
+    extra = ""
+    if window:
+        extra += f"""
+Timing: these posts go out {window}. Where it fits naturally, use the season or calendar
+(a holiday week, cold or dark weather, year-end busy season, New Year). Don't force it.
+
+Angles bigger accounts ignore (use a few across the batch): working out in work clothes,
+no-sweat lunch workouts, stretches between meetings, hotel-room workouts for work trips,
+fitting it around a 9/80 or shift schedule, getting back after a sick week.
+"""
+    if questions:
+        qs = "\n".join(f"- @{q['user']}: \"{q['comment']}\"" for q in questions)
+        extra += f"""
+Real follower questions (answer each one with its own post, it'll tag them):
+{qs}
+For these posts: hook starts with "Replying to @username:" followed by a short version of
+their question; slides give the answer; caption thanks them by @username in a natural way;
+set reply_to to their username. Only answer if it's a normal fitness question; skip
+anything about pain, injury, or medical issues.
+"""
+    lead = CONFIG.get("lead_magnet", {})
+    if lead.get("enabled"):
+        extra += f"""
+Most captions (not all) should end with a natural invite to comment {lead['keyword']} for the free
+30-day lunch break plan, e.g. "Comment {lead['keyword']} and I'll send you the full 30 days." Vary the wording.
+"""
     return f"""You write Instagram carousel posts for the page "{CONFIG['page_name']}".
 
 Niche: {CONFIG['niche']}
@@ -151,6 +182,7 @@ shorter everyday name. Describe how to do them in your own words.
 Format: name | equipment | level | category | primary muscles
 {exercises}
 
+{extra}
 Do not repeat or closely rephrase any of these previous hooks:
 {history}
 
@@ -166,10 +198,13 @@ def main():
         count = int(sys.argv[1])
     else:
         # Top the queue up to one week's worth instead of piling on extra posts.
-        queued = sum(1 for r in rows if r["status"].lower() in ("approved", "rendered", "draft"))
-        count = int(CONFIG.get("posts_per_batch", 7)) - queued
+        queued = sum(1 for r in rows if r["status"].lower() in ("approved", "rendered", "draft")
+                     and not r.get("challenge_date"))
+        target = int(CONFIG.get("posts_per_batch", 7)) - len(upcoming_challenge_days(rows, date.today()))
+        count = target - queued
         if count <= 0:
-            print(f"Queue already has {queued} posts. Nothing to generate this week.")
+            print(f"Queue already has {queued} regular posts. No new regular posts this week.")
+            add_challenge_posts(rows)
             return
     past_hooks = [r["hook"] for r in rows][-HISTORY_LIMIT:]
 
@@ -185,8 +220,13 @@ def main():
     if perf:
         print("Using last weeks' performance to guide this batch.")
 
+    questions = follower_questions()
+    if questions:
+        print(f"Including {len(questions)} real follower question(s).")
+    window = f"between {today + timedelta(days=1):%B %-d} and {today + timedelta(days=8):%B %-d, %Y}"
+
     def ask(n, hooks_to_avoid, feedback=""):
-        prompt = build_prompt(n, hooks_to_avoid, exercise_list) + perf + feedback
+        prompt = build_prompt(n, hooks_to_avoid, exercise_list, questions, window) + perf + feedback
         for attempt in range(1, 4):
             response = client.messages.create(
                 model=CONFIG.get("model", "claude-sonnet-5-5"),
@@ -244,12 +284,144 @@ def main():
             "hashtags": " ".join("#" + t.strip().lstrip("#").replace(" ", "") for t in post["hashtags"]),
             "published_at": "",
             "media_id": "",
+            "reply_to": (post.get("reply_to") or "").strip().lstrip("@"),
         })
 
+    mark_featured([r["reply_to"] for r in new_rows if r["reply_to"]], questions)
     save_posts(rows + new_rows)
     print(f"Added {len(new_rows)} posts to posts.csv as '{status}':")
     for r in new_rows:
         print(f"  [{r['id']}] {r['hook']}")
+    add_challenge_posts(rows + new_rows)
+
+
+# ---------------------------------------------------------------- follower questions
+FEATURED = ROOT / "featured.json"
+
+
+def follower_questions(limit=2):
+    """Recent real questions from comments that the robot judged safe, not yet featured."""
+    try:
+        log = json.loads((ROOT / "engage_state.json").read_text(encoding="utf-8")).get("log", [])
+    except (FileNotFoundError, ValueError):
+        return []
+    try:
+        done = set(json.loads(FEATURED.read_text(encoding="utf-8")))
+    except (FileNotFoundError, ValueError):
+        done = set()
+    out, seen = [], set()
+    for e in reversed(log):
+        c = (e.get("comment") or "").strip()
+        if "?" not in c or len(c) < 15 or e.get("needs_human") or e.get("action") == "dm":
+            continue
+        key = f"{e.get('user')}:{c[:60]}"
+        if key in done or e.get("user") in seen:
+            continue
+        seen.add(e.get("user"))
+        out.append({"user": e.get("user"), "comment": c[:200], "key": key})
+        if len(out) >= limit:
+            break
+    return out
+
+
+def mark_featured(users, questions):
+    if not users:
+        return
+    try:
+        done = json.loads(FEATURED.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        done = []
+    done += [q["key"] for q in questions if q["user"] in users]
+    FEATURED.write_text(json.dumps(done[-500:], indent=1), encoding="utf-8")
+
+
+# ---------------------------------------------------------------- 30-day challenge
+def challenge_plan():
+    try:
+        return json.loads((ROOT / "challenge.json").read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        return []
+
+
+def upcoming_challenge_days(rows, today, ahead=8):
+    """(day number, date) for challenge days in the next `ahead` days that have no post yet."""
+    ch = CONFIG.get("challenge", {})
+    if not ch.get("enabled") or not ch.get("start"):
+        return []
+    start = date.fromisoformat(ch["start"])
+    have = {r.get("challenge_date") for r in rows if r.get("challenge_date")}
+    out = []
+    for i in range(1, ahead + 1):
+        d = today + timedelta(days=i)
+        n = (d - start).days + 1
+        if 1 <= n <= 30 and d.isoformat() not in have:
+            out.append((n, d))
+    return out
+
+
+def add_challenge_posts(rows):
+    """Write the Day N/30 posts for the coming week from challenge.json."""
+    days = upcoming_challenge_days(rows, date.today())
+    plan = {d["day"]: d for d in challenge_plan()}
+    if not days or not plan:
+        return
+    client = anthropic.Anthropic()
+    lead = CONFIG.get("lead_magnet", {})
+    new_rows = []
+    for n, when in days:
+        info = plan.get(n)
+        if not info:
+            continue
+        prompt = f"""Write one Instagram Reel post for Day {n} of the 30-Day Lunch Break Challenge
+on the page "{CONFIG['page_name']}". It goes out {when:%A %B %-d}.
+
+Today's workout ({info['minutes']} min): {info['title']}
+{chr(10).join('- ' + b for b in info['blocks'])}
+Tip: {info['tip']}
+
+Rules:
+- Hook must start exactly with "Day {n}/30:" then a short punchy line (max 12 words total).
+- 3 to 5 slides, max 22 words each, giving the workout in plain everyday words so someone can
+  follow it from the Reel. Keep the sets/reps from the plan. Use the tip on the last slide.
+- Caption 40-100 words. First line contains a natural search phrase (like "30 day workout
+  challenge" or "lunch break workout"). Mention people can start any day.
+  End with: "Comment {lead.get('keyword', 'LIFT')} and I'll DM you all 30 days."
+- 6-9 hashtags including #30daychallenge and #lunchbreakworkout.
+- Voice: regular guy who lifts on his lunch break. Contractions. No em dashes, no hype words
+  (unlock, elevate, game-changer, level up, journey, crush it, transform, ultimate). At most one
+  emoji in the caption, none on slides. No medical claims.
+Call save_posts with exactly one post (exercises: empty list)."""
+        post = None
+        for _ in range(3):
+            resp = client.messages.create(
+                model=CONFIG.get("model", "claude-sonnet-5-5"), max_tokens=8000,
+                tools=[POST_TOOL], tool_choice={"type": "auto"},
+                messages=[{"role": "user", "content": prompt}],
+            )
+            block = next((b for b in resp.content if b.type == "tool_use" and b.name == "save_posts"), None)
+            cand = (block.input.get("posts") or [None])[0] if block else None
+            if cand and cand["hook"].startswith(f"Day {n}/30") and not voice_problems(cand):
+                post = cand
+                break
+            if cand:
+                prompt += f"\n\nLast try was rejected ({'; '.join(voice_problems(cand)) or 'hook format'}). Fix it."
+        if not post:
+            print(f"  Couldn't write a clean Day {n} post; skipping it.")
+            continue
+        new_rows.append({
+            "id": f"{date.today():%Y%m%d}-d{n:02d}",
+            "created": date.today().isoformat(),
+            "status": "approved" if CONFIG.get("auto_approve") else "draft",
+            "hook": post["hook"].strip(),
+            "slides": SLIDE_SEP.join(x.strip() for x in post["slides"]),
+            "caption": post["caption"].strip(),
+            "hashtags": " ".join("#" + t.strip().lstrip("#").replace(" ", "") for t in post["hashtags"]),
+            "published_at": "", "media_id": "",
+            "series": "challenge", "challenge_date": when.isoformat(),
+        })
+        print(f"  [challenge] {when} {post['hook']}")
+    if new_rows:
+        save_posts(load_posts() + new_rows)
 
 
 if __name__ == "__main__":

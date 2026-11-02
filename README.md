@@ -14,6 +14,12 @@ Fully automated content pipeline running free on GitHub Actions:
 - **Every night (~8pm):** a summary arrives as a GitHub notification and email:
   followers, today's post stats, comments that need you, and key warnings. Sundays add a
   week in review and an optional "boost pick".
+- **Free plan by DM:** anyone who comments **LIFT** gets the free 30-Day Lunch Break Challenge
+  (`plan/index.html`, served by GitHub Pages) sent to their DMs, plus a public "check your DMs" reply.
+  Captions invite people to comment the keyword.
+- **30-Day Lunch Break Challenge:** from the start date in `config.json`, the lunch post each day
+  is "Day N/30", written from `challenge.json` (edit `challenge.py`, then run it to rebuild both).
+- **Replying to @you:** real follower questions from comments become posts that tag them.
 - **Every Wednesday:** the Instagram and Threads keys are renewed automatically.
 
 Workouts are built from real exercises in the open
@@ -107,6 +113,8 @@ Facebook key never expires) without posting anything.
 | `"posts_per_day": 2` | Max posts per day (the evening slot skips itself if set to 1). |
 | `"reel_cycle": 1` | Every post is a Reel. Set `3` for 2 Reels then 1 carousel, `2` to alternate. |
 | `"reel_music"`, `"facebook_reels"`, `"threads"`, `"stories"` | Set any to `false` to turn that feature off. |
+| `"lead_magnet"` | Keyword, plan link, and on/off for the comment-for-the-plan DMs. |
+| `"challenge"` | Start date (a Monday) and on/off for the Day N/30 series. |
 | `"auto_reply_comments": false` | Stops comment replies (the nightly summary still comes). |
 
 `posts.csv` is the full record: every post, its status, and when it went live.

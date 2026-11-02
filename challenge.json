@@ -1,0 +1,400 @@
+[
+ {
+  "title": "Upper body: push and pull",
+  "minutes": 25,
+  "blocks": [
+   "Warm-up (4 min): 10 bodyweight squats, 10 arm circles each way, 8 inchworms, 20 sec plank.",
+   "A1. Dumbbell floor press: 2 x 8-10",
+   "A2. One-arm dumbbell row: 2 x 8-10 each side. Rest 75 sec after both.",
+   "B1. Seated dumbbell shoulder press: 2 x 8-10",
+   "B2. Band pull-apart: 2 x 15 (no band: prone Y raise x 10). Rest 75 sec.",
+   "C. Push-ups: 2 sets, stop 2 reps before you can't. Elevate your hands on a desk if needed."
+  ],
+  "tip": "Pick a weight you could lift 2-3 more times. That's the right weight.",
+  "day": 1,
+  "week": 1
+ },
+ {
+  "title": "Lower body",
+  "minutes": 25,
+  "blocks": [
+   "Warm-up (4 min): 10 bodyweight squats, 10 arm circles each way, 8 inchworms, 20 sec plank.",
+   "A. Goblet squat: 2 x 10. Rest 75 sec.",
+   "B. Dumbbell Romanian deadlift: 2 x 10. Rest 75 sec.",
+   "C1. Reverse lunge: 2 x 8 each leg",
+   "C2. Glute bridge: 2 x 12. Rest 60 sec after both.",
+   "D. Farmer carry: 2 x 40 steps, heavy as you can hold with good posture."
+  ],
+  "tip": "Sit down between your heels on the squat. Chest up, slow on the way down.",
+  "day": 2,
+  "week": 1
+ },
+ {
+  "title": "Easy day: walk + mobility",
+  "minutes": 20,
+  "blocks": [
+   "Brisk walk, 15 minutes. Phone in your pocket.",
+   "Then 5 minutes: hip flexor stretch 30 sec each side, doorway chest stretch 30 sec, cat-cow x 10, child's pose 60 sec."
+  ],
+  "tip": "Easy days are part of the plan. They're why the hard days keep working.",
+  "day": 3,
+  "week": 1
+ },
+ {
+  "title": "Full-body circuit",
+  "minutes": 24,
+  "blocks": [
+   "Warm-up (4 min): 10 bodyweight squats, 10 arm circles each way, 8 inchworms, 20 sec plank.",
+   "3 rounds, 30 sec work / 30 sec rest:",
+   "1. Dumbbell thruster (squat into a press)",
+   "2. Push-ups (hands on a desk if needed)",
+   "3. Bent-over dumbbell row",
+   "4. Reverse lunge, alternating legs",
+   "5. Dead bug",
+   "Rest 1 minute between rounds."
+  ],
+  "tip": "Light weights. This one is about moving well and breathing hard, not max effort.",
+  "day": 4,
+  "week": 1
+ },
+ {
+  "title": "Conditioning + core",
+  "minutes": 22,
+  "blocks": [
+   "Warm-up (4 min): 10 bodyweight squats, 10 arm circles each way, 8 inchworms, 20 sec plank.",
+   "EMOM for 12 minutes (start a new set at the top of every minute, rest the remainder):",
+   "Odd minutes: 8 goblet squats + 6 push-ups",
+   "Even minutes: 10 mountain climbers each side + 8 dumbbell swings (or 10 jump squats)",
+   "Core finisher, 2 rounds: 30 sec plank, 20 sec side plank each side, 10 bird dogs each side."
+  ],
+  "tip": "If you can't finish inside the minute, cut the reps. Don't skip the rest.",
+  "day": 5,
+  "week": 1
+ },
+ {
+  "title": "Easy day: walk + mobility",
+  "minutes": 20,
+  "blocks": [
+   "Brisk walk, 15 minutes. Phone in your pocket.",
+   "Then 5 minutes: hip flexor stretch 30 sec each side, doorway chest stretch 30 sec, cat-cow x 10, child's pose 60 sec."
+  ],
+  "tip": "Easy days are part of the plan. They're why the hard days keep working.",
+  "day": 6,
+  "week": 1
+ },
+ {
+  "title": "Rest + stretch",
+  "minutes": 10,
+  "blocks": [
+   "10 minutes of easy stretching anytime today: hamstrings, hips, chest, upper back."
+  ],
+  "tip": "Sleep and food do the building. Take the day.",
+  "day": 7,
+  "week": 1
+ },
+ {
+  "title": "Upper body: push and pull",
+  "minutes": 30,
+  "blocks": [
+   "Warm-up (4 min): 10 bodyweight squats, 10 arm circles each way, 8 inchworms, 20 sec plank.",
+   "A1. Dumbbell floor press: 3 x 8-10",
+   "A2. One-arm dumbbell row: 3 x 8-10 each side. Rest 75 sec after both.",
+   "B1. Seated dumbbell shoulder press: 3 x 8-10",
+   "B2. Band pull-apart: 3 x 15 (no band: prone Y raise x 10). Rest 75 sec.",
+   "C. Push-ups: 3 sets, stop 2 reps before you can't. Elevate your hands on a desk if needed."
+  ],
+  "tip": "Same weights as last week, one more set.",
+  "day": 8,
+  "week": 2
+ },
+ {
+  "title": "Lower body",
+  "minutes": 30,
+  "blocks": [
+   "Warm-up (4 min): 10 bodyweight squats, 10 arm circles each way, 8 inchworms, 20 sec plank.",
+   "A. Goblet squat: 3 x 10. Rest 75 sec.",
+   "B. Dumbbell Romanian deadlift: 3 x 10. Rest 75 sec.",
+   "C1. Reverse lunge: 3 x 8 each leg",
+   "C2. Glute bridge: 3 x 12. Rest 60 sec after both.",
+   "D. Farmer carry: 3 x 40 steps, heavy as you can hold with good posture."
+  ],
+  "tip": "On the RDL, push your hips back like closing a car door with your butt.",
+  "day": 9,
+  "week": 2
+ },
+ {
+  "title": "Easy day: walk + mobility",
+  "minutes": 20,
+  "blocks": [
+   "Brisk walk, 15 minutes. Phone in your pocket.",
+   "Then 5 minutes: hip flexor stretch 30 sec each side, doorway chest stretch 30 sec, cat-cow x 10, child's pose 60 sec."
+  ],
+  "tip": "Easy days are part of the plan. They're why the hard days keep working.",
+  "day": 10,
+  "week": 2
+ },
+ {
+  "title": "Full-body circuit",
+  "minutes": 24,
+  "blocks": [
+   "Warm-up (4 min): 10 bodyweight squats, 10 arm circles each way, 8 inchworms, 20 sec plank.",
+   "3 rounds, 35 sec work / 25 sec rest:",
+   "1. Dumbbell thruster (squat into a press)",
+   "2. Push-ups (hands on a desk if needed)",
+   "3. Bent-over dumbbell row",
+   "4. Reverse lunge, alternating legs",
+   "5. Dead bug",
+   "Rest 1 minute between rounds."
+  ],
+  "tip": "Try to get the same number of reps in every round.",
+  "day": 11,
+  "week": 2
+ },
+ {
+  "title": "Conditioning + core",
+  "minutes": 24,
+  "blocks": [
+   "Warm-up (4 min): 10 bodyweight squats, 10 arm circles each way, 8 inchworms, 20 sec plank.",
+   "EMOM for 14 minutes (start a new set at the top of every minute, rest the remainder):",
+   "Odd minutes: 8 goblet squats + 6 push-ups",
+   "Even minutes: 10 mountain climbers each side + 8 dumbbell swings (or 10 jump squats)",
+   "Core finisher, 2 rounds: 30 sec plank, 20 sec side plank each side, 10 bird dogs each side."
+  ],
+  "tip": "Two more minutes than last week. Same rhythm.",
+  "day": 12,
+  "week": 2
+ },
+ {
+  "title": "Easy day: walk + mobility",
+  "minutes": 20,
+  "blocks": [
+   "Brisk walk, 15 minutes. Phone in your pocket.",
+   "Then 5 minutes: hip flexor stretch 30 sec each side, doorway chest stretch 30 sec, cat-cow x 10, child's pose 60 sec."
+  ],
+  "tip": "Easy days are part of the plan. They're why the hard days keep working.",
+  "day": 13,
+  "week": 2
+ },
+ {
+  "title": "Rest + stretch",
+  "minutes": 10,
+  "blocks": [
+   "10 minutes of easy stretching anytime today: hamstrings, hips, chest, upper back."
+  ],
+  "tip": "Sleep and food do the building. Take the day.",
+  "day": 14,
+  "week": 2
+ },
+ {
+  "title": "Upper body: push and pull",
+  "minutes": 30,
+  "blocks": [
+   "Warm-up (4 min): 10 bodyweight squats, 10 arm circles each way, 8 inchworms, 20 sec plank.",
+   "A1. Dumbbell floor press: 3 x 10-12",
+   "A2. One-arm dumbbell row: 3 x 10-12 each side. Rest 60 sec after both.",
+   "B1. Seated dumbbell shoulder press: 3 x 10-12",
+   "B2. Band pull-apart: 3 x 15 (no band: prone Y raise x 10). Rest 60 sec.",
+   "C. Push-ups: 3 sets, stop 2 reps before you can't. Elevate your hands on a desk if needed."
+  ],
+  "tip": "Shorter rest today. Keep the form, not the pace.",
+  "day": 15,
+  "week": 3
+ },
+ {
+  "title": "Lower body",
+  "minutes": 30,
+  "blocks": [
+   "Warm-up (4 min): 10 bodyweight squats, 10 arm circles each way, 8 inchworms, 20 sec plank.",
+   "A. Goblet squat: 3 x 12. Rest 75 sec.",
+   "B. Dumbbell Romanian deadlift: 3 x 12. Rest 75 sec.",
+   "C1. Reverse lunge: 3 x 8 each leg",
+   "C2. Glute bridge: 3 x 12. Rest 60 sec after both.",
+   "D. Farmer carry: 3 x 40 steps, heavy as you can hold with good posture."
+  ],
+  "tip": "If your legs are sore from last time, that's normal. Move anyway, it helps.",
+  "day": 16,
+  "week": 3
+ },
+ {
+  "title": "Easy day: walk + mobility",
+  "minutes": 20,
+  "blocks": [
+   "Brisk walk, 20 minutes. Phone in your pocket.",
+   "Then 5 minutes: hip flexor stretch 30 sec each side, doorway chest stretch 30 sec, cat-cow x 10, child's pose 60 sec."
+  ],
+  "tip": "Easy days are part of the plan. They're why the hard days keep working.",
+  "day": 17,
+  "week": 3
+ },
+ {
+  "title": "Full-body circuit",
+  "minutes": 30,
+  "blocks": [
+   "Warm-up (4 min): 10 bodyweight squats, 10 arm circles each way, 8 inchworms, 20 sec plank.",
+   "4 rounds, 40 sec work / 20 sec rest:",
+   "1. Dumbbell thruster (squat into a press)",
+   "2. Push-ups (hands on a desk if needed)",
+   "3. Bent-over dumbbell row",
+   "4. Reverse lunge, alternating legs",
+   "5. Dead bug",
+   "Rest 1 minute between rounds."
+  ],
+  "tip": "Four rounds now. Pace the first one.",
+  "day": 18,
+  "week": 3
+ },
+ {
+  "title": "Conditioning + core",
+  "minutes": 26,
+  "blocks": [
+   "Warm-up (4 min): 10 bodyweight squats, 10 arm circles each way, 8 inchworms, 20 sec plank.",
+   "EMOM for 16 minutes (start a new set at the top of every minute, rest the remainder):",
+   "Odd minutes: 8 goblet squats + 6 push-ups",
+   "Even minutes: 10 mountain climbers each side + 8 dumbbell swings (or 10 jump squats)",
+   "Core finisher, 2 rounds: 30 sec plank, 20 sec side plank each side, 10 bird dogs each side."
+  ],
+  "tip": "You'll be sweaty. Bring a towel and a fresh shirt.",
+  "day": 19,
+  "week": 3
+ },
+ {
+  "title": "Easy day: walk + mobility",
+  "minutes": 20,
+  "blocks": [
+   "Brisk walk, 20 minutes. Phone in your pocket.",
+   "Then 5 minutes: hip flexor stretch 30 sec each side, doorway chest stretch 30 sec, cat-cow x 10, child's pose 60 sec."
+  ],
+  "tip": "Easy days are part of the plan. They're why the hard days keep working.",
+  "day": 20,
+  "week": 3
+ },
+ {
+  "title": "Rest + stretch",
+  "minutes": 10,
+  "blocks": [
+   "10 minutes of easy stretching anytime today: hamstrings, hips, chest, upper back."
+  ],
+  "tip": "Sleep and food do the building. Take the day.",
+  "day": 21,
+  "week": 3
+ },
+ {
+  "title": "Upper body: push and pull",
+  "minutes": 35,
+  "blocks": [
+   "Warm-up (4 min): 10 bodyweight squats, 10 arm circles each way, 8 inchworms, 20 sec plank.",
+   "A1. Dumbbell floor press: 4 x 8-10 (go heavier)",
+   "A2. One-arm dumbbell row: 4 x 8-10 (go heavier) each side. Rest 60 sec after both.",
+   "B1. Seated dumbbell shoulder press: 4 x 8-10 (go heavier)",
+   "B2. Band pull-apart: 4 x 15 (no band: prone Y raise x 10). Rest 60 sec.",
+   "C. Push-ups: 4 sets, stop 2 reps before you can't. Elevate your hands on a desk if needed."
+  ],
+  "tip": "Go up one dumbbell size on the press and row if last week felt easy.",
+  "day": 22,
+  "week": 4
+ },
+ {
+  "title": "Lower body",
+  "minutes": 35,
+  "blocks": [
+   "Warm-up (4 min): 10 bodyweight squats, 10 arm circles each way, 8 inchworms, 20 sec plank.",
+   "A. Goblet squat: 4 x 10 (heavier). Rest 75 sec.",
+   "B. Dumbbell Romanian deadlift: 4 x 10 (heavier). Rest 75 sec.",
+   "C1. Reverse lunge: 4 x 8 each leg",
+   "C2. Glute bridge: 4 x 12. Rest 60 sec after both.",
+   "D. Farmer carry: 4 x 40 steps, heavy as you can hold with good posture."
+  ],
+  "tip": "Last week of the challenge for legs. Make the farmer carry heavy.",
+  "day": 23,
+  "week": 4
+ },
+ {
+  "title": "Easy day: walk + mobility",
+  "minutes": 20,
+  "blocks": [
+   "Brisk walk, 20 minutes. Phone in your pocket.",
+   "Then 5 minutes: hip flexor stretch 30 sec each side, doorway chest stretch 30 sec, cat-cow x 10, child's pose 60 sec."
+  ],
+  "tip": "Easy days are part of the plan. They're why the hard days keep working.",
+  "day": 24,
+  "week": 4
+ },
+ {
+  "title": "Full-body circuit",
+  "minutes": 30,
+  "blocks": [
+   "Warm-up (4 min): 10 bodyweight squats, 10 arm circles each way, 8 inchworms, 20 sec plank.",
+   "4 rounds, 40 sec work / 20 sec rest:",
+   "1. Dumbbell thruster (squat into a press)",
+   "2. Push-ups (hands on a desk if needed)",
+   "3. Bent-over dumbbell row",
+   "4. Reverse lunge, alternating legs",
+   "5. Dead bug",
+   "Rest 1 minute between rounds."
+  ],
+  "tip": "Same as last week. Try to beat your reps from Week 3.",
+  "day": 25,
+  "week": 4
+ },
+ {
+  "title": "Conditioning + core",
+  "minutes": 28,
+  "blocks": [
+   "Warm-up (4 min): 10 bodyweight squats, 10 arm circles each way, 8 inchworms, 20 sec plank.",
+   "EMOM for 18 minutes (start a new set at the top of every minute, rest the remainder):",
+   "Odd minutes: 8 goblet squats + 6 push-ups",
+   "Even minutes: 10 mountain climbers each side + 8 dumbbell swings (or 10 jump squats)",
+   "Core finisher, 2 rounds: 30 sec plank, 20 sec side plank each side, 10 bird dogs each side."
+  ],
+  "tip": "Last conditioning day. Push the even minutes.",
+  "day": 26,
+  "week": 4
+ },
+ {
+  "title": "Easy day: walk + mobility",
+  "minutes": 20,
+  "blocks": [
+   "Brisk walk, 20 minutes. Phone in your pocket.",
+   "Then 5 minutes: hip flexor stretch 30 sec each side, doorway chest stretch 30 sec, cat-cow x 10, child's pose 60 sec."
+  ],
+  "tip": "Easy days are part of the plan. They're why the hard days keep working.",
+  "day": 27,
+  "week": 4
+ },
+ {
+  "title": "Rest + stretch",
+  "minutes": 10,
+  "blocks": [
+   "10 minutes of easy stretching anytime today: hamstrings, hips, chest, upper back."
+  ],
+  "tip": "Sleep and food do the building. Take the day.",
+  "day": 28,
+  "week": 4
+ },
+ {
+  "title": "Test day: repeat Day 1",
+  "minutes": 25,
+  "blocks": [
+   "Warm-up (4 min): 10 bodyweight squats, 10 arm circles each way, 8 inchworms, 20 sec plank.",
+   "A1. Dumbbell floor press: 2 x 8-10",
+   "A2. One-arm dumbbell row: 2 x 8-10 each side. Rest 75 sec after both.",
+   "B1. Seated dumbbell shoulder press: 2 x 8-10",
+   "B2. Band pull-apart: 2 x 15 (no band: prone Y raise x 10). Rest 75 sec.",
+   "C. Push-ups: 2 sets, stop 2 reps before you can't. Elevate your hands on a desk if needed."
+  ],
+  "tip": "Same workout as Day 1. Write down your weights and reps. Compare. That's your proof.",
+  "day": 29,
+  "week": 4
+ },
+ {
+  "title": "Finish line: walk, stretch, plan what's next",
+  "minutes": 20,
+  "blocks": [
+   "20 minute walk.",
+   "Pick your 3 favorite workouts from this month and put them on your calendar for next week, same time as today."
+  ],
+  "tip": "You made the time 30 days in a row. Keep the slot. The slot is the habit.",
+  "day": 30,
+  "week": 4
+ }
+]

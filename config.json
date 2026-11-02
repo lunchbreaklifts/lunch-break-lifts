@@ -6,7 +6,7 @@
   "tone": "Direct, encouraging, practical. No hype, no guru talk, no shaming.",
   "posts_per_batch": 14,
   "model": "claude-sonnet-5-5",
-  "cta_line": "Save this for your next lunch break",
+  "cta_line": "Comment LIFT for the free 30-day plan",
   "auto_approve": true,
   "publishing_enabled": true,
   "timezone": "America/Denver",
@@ -37,5 +37,14 @@
   "reel_music": true,
   "reel_cycle": 1,
   "posts_per_day": 2,
-  "min_hours_between_posts": 4
+  "min_hours_between_posts": 4,
+  "lead_magnet": {
+    "enabled": true,
+    "keyword": "LIFT",
+    "url": "https://lunchbreaklifts.github.io/lunch-break-lifts/plan/"
+  },
+  "challenge": {
+    "enabled": true,
+    "start": "2026-11-09"
+  }
 }

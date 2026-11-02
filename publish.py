@@ -161,10 +161,10 @@ def main():
         return
 
     queue = [r for r in rows if r["status"].lower() == "rendered"]
-    if not queue:
+    post = pick_next(queue, now)
+    if post is None:
         print("Queue is empty. Nothing to publish. The weekly job will add more.")
         return
-    post = queue[0]
 
     slides = sorted((OUTPUT / post["id"]).glob("slide_*.jpg"))
     if len(slides) < 2:
@@ -172,7 +172,7 @@ def main():
 
     base = image_base_url()
     urls = [f"{base}/{s.relative_to(ROOT).as_posix()}" for s in slides]
-    caption = f"{post['caption']}\n\n{post['hashtags']}"[:CAPTION_LIMIT]
+    caption = f"{with_cta(post['caption'])}\n\n{post['hashtags']}"[:CAPTION_LIMIT]
     alts = alt_texts(post, len(slides))
 
     published_count = sum(1 for r in rows if r["status"].lower() == "published")
@@ -237,6 +237,27 @@ def main():
     share_to_threads(post, urls[0])
     save_posts(rows)  # keep the Facebook / Threads IDs too
     cleanup_old_media(rows)
+
+
+def pick_next(queue, now):
+    """Challenge days go out on their own date (lunch slot first); everything else is first in, first out.
+    A challenge post for a future date waits."""
+    today = now.date().isoformat()
+    due = sorted((r for r in queue if r.get("challenge_date") and r["challenge_date"] <= today),
+                 key=lambda r: r["challenge_date"])
+    if due:
+        return due[0]
+    regular = [r for r in queue if not r.get("challenge_date")]
+    return regular[0] if regular else None
+
+
+def with_cta(caption):
+    """Make sure the caption invites people to comment the keyword for the free plan."""
+    lead = CONFIG.get("lead_magnet", {})
+    kw = lead.get("keyword", "")
+    if not lead.get("enabled") or not kw or kw.lower() in caption.lower():
+        return caption
+    return f"{caption}\n\nComment {kw} and I'll DM you my free 30-day lunch break workout plan."
 
 
 def publish_reel_with_music(user_id, post, reel_url, caption, cover_url):
