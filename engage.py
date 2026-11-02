@@ -164,12 +164,13 @@ def handle_plan_request(token, state, post, c):
     lead = CONFIG["lead_magnet"]
     sent = state.setdefault("dm_sent", {})
     now = datetime.now(TZ).isoformat(timespec="seconds")
-    entry = {"at": now, "post": post["id"], "user": c["username"], "comment": c["text"][:300],
+    entry = {"at": now, "post": post["id"], "user": c["username"], "comment": c.get("text", "")[:300],
              "action": "dm", "reply": "", "needs_human": False, "reason": "asked for the free plan"}
     if DRY_RUN:
         print(f"  would DM the plan to @{c['username']}")
         return False
-    who = hashlib.sha256(c["username"].lower().encode()).hexdigest()[:16]  # never store usernames publicly
+    ident = (c.get("from") or {}).get("id") or c["username"]
+    who = hashlib.sha256(str(ident).lower().encode()).hexdigest()[:16]  # never store usernames publicly
     already = who in sent
     if not already:
         try:
@@ -202,11 +203,16 @@ def collect_comments(token, me, posts):
     for p in posts:
         try:
             data = ig("GET", f"{p['media_id']}/comments", token,
-                      fields="id,text,username,timestamp,replies{id,username}", limit=50)
+                      fields="id,text,username,timestamp,from{id,username},replies{id,username,from{id,username}}",
+                      limit=50)
         except RuntimeError as e:
             print(f"  couldn't read comments on [{p['id']}]: {e}")
             continue
         got = data.get("data", [])
+        for c in got:  # the name can come back in "username" or in "from"
+            c["username"] = c.get("username") or (c.get("from") or {}).get("username") or "someone"
+            for r in (c.get("replies") or {}).get("data", []):
+                r["username"] = r.get("username") or (r.get("from") or {}).get("username") or ""
         if got:
             print(f"  [{p['id']}] {len(got)} comment(s) on this post")
         for c in got:
@@ -245,13 +251,13 @@ def run_replies(token, state):
         if replied >= MAX_REPLIES_PER_RUN:
             print("  reached the reply limit for this run; the rest wait for the next run.")
             break
-        if wants_plan(c["text"]):
+        if wants_plan(c.get("text", "")):
             if handle_plan_request(token, state, post, c):
                 replied += 1
             continue
         d = decide(client, post, c)
         entry = {"at": datetime.now(TZ).isoformat(timespec="seconds"), "post": post["id"],
-                 "user": c["username"], "comment": c["text"][:300], "action": d["action"],
+                 "user": c["username"], "comment": c.get("text", "")[:300], "action": d["action"],
                  "reply": d.get("reply", ""), "needs_human": bool(d.get("needs_human")),
                  "reason": d.get("reason", "")}
         if d["action"] == "reply":
