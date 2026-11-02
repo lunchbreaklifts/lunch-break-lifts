@@ -309,6 +309,8 @@ def write_summary(token, state, me):
         p = today[-1]
         lines.append(f"## Today's post ({p.get('format') or 'post'})")
         lines.append(f"{p['hook']}")
+        if (p.get("format") or "") == "reel":
+            lines.append(f"🎵 {p['audio']}" if p.get("audio") else "🎵 No music this time (check the Daily post log).")
         try:
             m = fetch(p["media_id"], token)
             lines.append(" · ".join(f"{k} {m.get(k, 0)}" for k in METRICS))

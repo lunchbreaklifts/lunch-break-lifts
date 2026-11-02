@@ -173,7 +173,9 @@ def main():
     reel_file = OUTPUT / post["id"] / "reel.mp4"
     # Two Reels for every slideshow: Reels reach new people, slideshows get saved.
     cycle = int(CONFIG.get("reel_cycle", 3))
-    want_reel = CONFIG.get("reels", True) and reel_file.exists() and published_count % cycle != cycle - 1
+    # reel_cycle 1 (or 0) = every post is a Reel; 3 = two Reels then one carousel; and so on.
+    is_carousel_turn = cycle > 1 and published_count % cycle == cycle - 1
+    want_reel = CONFIG.get("reels", True) and reel_file.exists() and not is_carousel_turn
     reel_url = ""
     if want_reel and video_base_url():
         reel_url = f"{video_base_url()}/{reel_file.relative_to(ROOT).as_posix()}"

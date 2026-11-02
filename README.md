@@ -5,7 +5,7 @@ Fully automated content pipeline running free on GitHub Actions:
 - **Every Sunday:** Claude writes 7 original fitness posts. Each is rendered as carousel
   slides, a vertical Reel video, and a Story image, then queued.
 - **Every day at lunchtime:** the next post goes out through the official Instagram API.
-  Two Reels for every carousel. Reels get a trending, clean song picked fresh each day
+  Every post goes out as a Reel (adjustable). Reels get a trending, clean song picked fresh each day
   (Instagram Audio API, never repeated within 3 weeks). Each post is also shared to the
   Instagram Story, Reels are copied to the Lunch Break Lifts Facebook Page, and a short
   version goes to Threads. Carousel slides get alt text.
@@ -104,7 +104,7 @@ Facebook key never expires) without posting anything.
 | `"auto_approve": true` | Posts go straight into the queue. Set `false` to review: new posts land as `draft` in `posts.csv`; change to `approved` to queue them. |
 | `"publishing_enabled": false` | Pauses all posting instantly. |
 | `"posts_per_batch"` | Posts generated each Sunday (7 = one a day). |
-| `"reel_cycle": 3` | 2 Reels, then 1 carousel. Set `2` to alternate. |
+| `"reel_cycle": 1` | Every post is a Reel. Set `3` for 2 Reels then 1 carousel, `2` to alternate. |
 | `"reel_music"`, `"facebook_reels"`, `"threads"`, `"stories"` | Set any to `false` to turn that feature off. |
 | `"auto_reply_comments": false` | Stops comment replies (the nightly summary still comes). |
 
