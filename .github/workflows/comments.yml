@@ -1,12 +1,14 @@
 name: Comments and daily summary
 
-# Replies to new comments 3 times a day (Denver: ~9am, ~3pm, ~8pm; cron is UTC).
+# Replies to comments in the morning and ~30 and ~90 min after each post (cron is UTC).
 # The 8pm run also sends the daily summary as a GitHub issue (you get a notification).
 on:
   schedule:
-    - cron: "11 15 * * *"
-    - cron: "11 21 * * *"
-    - cron: "7 2 * * *"
+    - cron: "11 15 * * *"   # morning
+    - cron: "57 19 * * *"   # ~30 min after the lunch post usually lands
+    - cron: "57 20 * * *"   # ~90 min after
+    - cron: "7 2 * * *"     # ~30 min after the evening post + nightly summary
+    - cron: "7 3 * * *"     # ~90 min after the evening post
   workflow_dispatch:
     inputs:
       summary:

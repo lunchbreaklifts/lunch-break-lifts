@@ -1,10 +1,11 @@
 name: Daily post
 
-# Every day around lunchtime Denver time: 11:43 in winter, 12:43 in summer (cron is UTC).
-# Also runnable by hand from the Actions tab. Posts at most once per day.
+# Twice a day, lunch and evening, Denver time (cron is UTC).
+# Also runnable by hand from the Actions tab. At most posts_per_day posts, at least 4h apart.
 on:
   schedule:
-    - cron: "43 18 * * *"
+    - cron: "43 18 * * *"   # lunch: ~11:43am MST / 12:43pm MDT (GitHub usually starts 30-45 min late)
+    - cron: "47 0 * * *"    # evening: ~5:47pm MST / 6:47pm MDT
   workflow_dispatch:
 
 permissions:
