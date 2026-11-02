@@ -19,6 +19,7 @@ Usage:
     python engage.py --dry-run    # show what it would reply, post nothing
 """
 
+import hashlib
 import json
 import os
 import random
@@ -168,14 +169,15 @@ def handle_plan_request(token, state, post, c):
     if DRY_RUN:
         print(f"  would DM the plan to @{c['username']}")
         return False
-    already = c["username"] in sent
+    who = hashlib.sha256(c["username"].lower().encode()).hexdigest()[:16]  # never store usernames publicly
+    already = who in sent
     if not already:
         try:
             requests.post(f"{API}/me/messages", params={"access_token": token}, timeout=60,
                           json={"recipient": {"comment_id": c["id"]},
                                 "message": {"text": random.choice(DM_TEXTS).format(url=lead["url"])}}
                           ).raise_for_status()
-            sent[c["username"]] = now
+            sent[who] = now
             print(f"  DM'd the plan to @{c['username']}")
         except Exception as e:
             print(f"  couldn't DM @{c['username']} ({e}); flagged for you")
