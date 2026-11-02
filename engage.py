@@ -204,7 +204,10 @@ def collect_comments(token, me, posts):
         except RuntimeError as e:
             print(f"  couldn't read comments on [{p['id']}]: {e}")
             continue
-        for c in data.get("data", []):
+        got = data.get("data", [])
+        if got:
+            print(f"  [{p['id']}] {len(got)} comment(s) on this post")
+        for c in got:
             if c.get("username", "").lower() == me.lower():
                 continue
             replies = (c.get("replies") or {}).get("data", [])
