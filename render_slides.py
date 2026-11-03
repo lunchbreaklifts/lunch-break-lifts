@@ -22,7 +22,10 @@ import sys
 from playwright.sync_api import sync_playwright
 
 from common import CONFIG, OUTPUT, ROOT, load_posts, save_posts, split_slides
-from reel import VERSION as REEL_VERSION, make_reel, reading_time
+import os
+
+from reel import VERSION as REEL_VERSION, make_footage_reel, make_reel, reading_time
+from footage import clips_for
 
 WIDTH, HEIGHT = 1080, 1350
 B = CONFIG["brand"]
@@ -122,6 +125,24 @@ def render_story(browser, row, out_dir):
     tab.close()
 
 
+TRANSPARENT = "<style>html,body{background:transparent !important}</style>"
+
+
+def render_overlays(tab, row, body, total, out_dir):
+    """Same slides as the carousel, but with a see-through background, for laying over footage."""
+    pages = [cover_slide(row["hook"], swipe=False)]
+    pages += [body_slide(text, i + 2, total) for i, text in enumerate(body)]
+    pages.append(cta_slide())
+    paths = []
+    for i, html_page in enumerate(pages, start=1):
+        tab.set_content(html_page.replace("</head>", TRANSPARENT + "</head>"), wait_until="networkidle")
+        tab.evaluate(FIT_JS)
+        path = out_dir / f"overlay_{i:02d}.png"
+        tab.screenshot(path=str(path), type="png", omit_background=True)
+        paths.append(path)
+    return paths
+
+
 def refresh_reels(rows):
     """Rebuild queued Reels made in an older style (no browser needed: uses the saved slide images)."""
     for row in rows:
@@ -150,8 +171,17 @@ def main():
     rows = load_posts()
     todo = [r for r in rows if r["status"].lower() == "approved"]
     stories = "--stories" in sys.argv and CONFIG.get("stories", True)
+    use_footage = CONFIG.get("reel_footage", True) and bool(os.environ.get("PEXELS_API_KEY"))
     if "--refresh-reels" in sys.argv and CONFIG.get("reels", True):
-        refresh_reels(rows)
+        if use_footage:
+            # queued Reels from before footage existed get fully re-rendered with footage
+            for r in rows:
+                vfile = OUTPUT / r["id"] / "reel_version.txt"
+                if r["status"].lower() == "rendered" and (not vfile.exists() or vfile.read_text().strip() != REEL_VERSION):
+                    r["status"] = "approved"
+            todo = [r for r in rows if r["status"].lower() == "approved"]
+        else:
+            refresh_reels(rows)
     if not todo and not stories:
         print('No posts with status "approved". Nothing to render.')
         return
@@ -195,7 +225,17 @@ def main():
                 durations += [reading_time(t) for t in body]
                 durations.append(reading_time("", last=True))
                 frames = [out_dir / "reel_cover.jpg"] + sorted(out_dir.glob("slide_*.jpg"))[1:]
-                if make_reel(out_dir, frames, durations):
+                made = None
+                if use_footage:
+                    clips = clips_for(row, len(durations), 3)
+                    if clips:
+                        overlays = render_overlays(tab, row, body, total, out_dir)
+                        made = make_footage_reel(out_dir, overlays, durations, clips)
+                        for o in overlays:  # keep the repo small; only the finished video is needed
+                            o.unlink(missing_ok=True)
+                        if made:
+                            reel_note = f" + footage reel ({sum(durations):.0f}s)"
+                if not made and make_reel(out_dir, frames, durations):
                     reel_note = f" + reel ({sum(durations):.0f}s)"
 
             row["status"] = "rendered"

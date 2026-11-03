@@ -159,6 +159,13 @@ def main():
     if times and (now - max(times)).total_seconds() < min_gap * 3600:
         print(f"Last post was under {min_gap:g} hours ago. Skipping.")
         return
+    slots = post_slots()
+    manual = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
+    if not manual and today_count < len(slots):
+        hh, mm = (int(x) for x in slots[today_count].split(":"))
+        if (now.hour, now.minute) < (hh, mm):
+            print(f"Next post slot is {slots[today_count]}; not time yet.")
+            return
 
     queue = [r for r in rows if r["status"].lower() == "rendered"]
     post = pick_next(queue, now)
@@ -238,6 +245,17 @@ def main():
     share_to_threads(post, urls[0])
     save_posts(rows)  # keep the Facebook / Threads IDs too
     cleanup_old_media(rows)
+
+
+def post_slots():
+    """Today's post times (Denver). Learned from follower activity once there's enough data."""
+    try:
+        learned = json.loads((ROOT / "best_times.json").read_text(encoding="utf-8")).get("slots")
+        if learned:
+            return sorted(learned)
+    except (FileNotFoundError, ValueError):
+        pass
+    return CONFIG.get("post_slots", ["12:00", "18:00"])
 
 
 def pick_next(queue, now):

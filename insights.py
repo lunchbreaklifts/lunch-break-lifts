@@ -12,6 +12,7 @@ Usage:
 """
 
 import csv
+import json
 import os
 import sys
 from datetime import datetime
@@ -109,6 +110,45 @@ def main():
     if updated:
         save_stats(stats)
     print(f"Updated stats for {updated} of {len(posts)} published posts.")
+    try:
+        update_best_times(token)
+    except Exception as e:
+        print(f"  best posting times not updated: {e}")
+
+
+BEST_TIMES = ROOT / "best_times.json"
+# Meta reports follower activity by hour in Pacific time (same as its other insights).
+ACTIVITY_TZ = ZoneInfo("America/Los_Angeles")
+WINDOWS = {"lunch": range(10, 14), "evening": range(16, 21)}  # local hours we're willing to post in
+
+
+def update_best_times(token):
+    """Once the account has 100+ followers, Instagram reports when followers are online.
+    Pick the busiest lunch hour and evening hour (Denver time) and save them for the posting job."""
+    r = requests.get(f"{API}/me/insights", timeout=60,
+                     params={"metric": "online_followers", "period": "lifetime", "access_token": token}).json()
+    if "error" in r:
+        print(f"  follower activity not available yet ({r['error'].get('message', '')[:80]})")
+        return
+    try:
+        by_hour = r["data"][0]["values"][-1]["value"]
+    except (KeyError, IndexError, TypeError):
+        print("  follower activity not available yet (needs 100+ followers)")
+        return
+    if not by_hour or sum(by_hour.values()) == 0:
+        return
+    local = {}
+    today = datetime.now(ACTIVITY_TZ).replace(minute=0, second=0, microsecond=0)
+    for h, n in by_hour.items():
+        t = today.replace(hour=int(h)).astimezone(TZ)
+        local[t.hour] = local.get(t.hour, 0) + int(n)
+    slots = []
+    for name, hours in WINDOWS.items():
+        best = max(hours, key=lambda h: local.get(h, 0))
+        slots.append(f"{best:02d}:00")
+    BEST_TIMES.write_text(json.dumps({"slots": slots, "updated": datetime.now(TZ).isoformat(timespec="seconds"),
+                                      "followers_online_by_hour": local}, indent=1), encoding="utf-8")
+    print(f"  best posting times (Denver): {', '.join(slots)}")
 
 
 def performance_notes(min_posts=4, age_days=2):

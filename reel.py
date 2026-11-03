@@ -20,7 +20,8 @@ SLIDE_H = 1350
 FADE = 0.3
 FPS = 30
 ZOOM = 0.07  # how far each slide zooms over its time on screen (7%)
-VERSION = "2"  # bump to re-render queued Reels with a new style
+VERSION = "3"  # footage style; bump to re-render queued Reels
+PLAIN_VERSION = "2"
 
 
 def reading_time(text, first=False, last=False):
@@ -83,6 +84,53 @@ def make_reel(out_dir: Path, slides, durations):
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         print(f"    reel failed: {result.stderr.strip()[:300]}")
+        return None
+    (out_dir / "reel_version.txt").write_text(PLAIN_VERSION, encoding="utf-8")
+    return out_path
+
+
+def make_footage_reel(out_dir: Path, overlays, durations, clips):
+    """Reel with real workout footage behind the text: each slide's text (transparent PNG) sits on a
+    darkened clip, with short crossfades between slides. Returns the path, or None on failure."""
+    if not shutil.which("ffmpeg") or len(overlays) != len(durations) or len(clips) < len(durations):
+        return None
+    pad_y = (H - SLIDE_H) // 2
+    cmd = ["ffmpeg", "-y", "-loglevel", "error"]
+    for clip, d in zip(clips, durations):
+        cmd += ["-stream_loop", "-1", "-t", f"{d + FADE:.2f}", "-i", str(clip)]
+    for img in overlays:
+        cmd += ["-loop", "1", "-t", "60", "-i", str(img)]
+    total = sum(durations) + FADE
+    n = len(durations)
+    cmd += ["-f", "lavfi", "-t", f"{total:.2f}", "-i", "anullsrc=r=48000:cl=stereo"]
+
+    parts = []
+    for i, d in enumerate(durations):
+        parts.append(
+            f"[{i}:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps={FPS},"
+            f"eq=saturation=0.8,drawbox=x=0:y=0:w=iw:h=ih:color=black@0.62:t=fill,"
+            f"trim=duration={d + FADE:.2f},setpts=PTS-STARTPTS,setsar=1[bg{i}]"
+        )
+        parts.append(f"[{n + i}:v]format=rgba,scale={W}:{SLIDE_H}[tx{i}]")
+        parts.append(f"[bg{i}][tx{i}]overlay=0:{pad_y}:shortest=1,format=yuv420p[v{i}]")
+    prev, offset = "v0", 0.0
+    for i in range(1, n):
+        offset += durations[i - 1]
+        parts.append(f"[{prev}][v{i}]xfade=transition=fade:duration={FADE}:offset={offset:.2f}[x{i}]")
+        prev = f"x{i}"
+
+    out_path = out_dir / "reel.mp4"
+    cmd += [
+        "-filter_complex", ";".join(parts),
+        "-map", f"[{prev}]", "-map", f"{2 * n}:a",
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "27", "-maxrate", "3M", "-bufsize", "6M",
+        "-profile:v", "high", "-pix_fmt", "yuv420p", "-r", str(FPS), "-g", str(FPS * 2),
+        "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
+        "-t", f"{total:.2f}", "-movflags", "+faststart", str(out_path),
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"    footage reel failed: {result.stderr.strip()[:300]}")
         return None
     (out_dir / "reel_version.txt").write_text(VERSION, encoding="utf-8")
     return out_path

@@ -46,5 +46,10 @@
   "challenge": {
     "enabled": true,
     "start": "2026-11-09"
-  }
+  },
+  "post_slots": [
+    "12:00",
+    "18:00"
+  ],
+  "reel_footage": true
 }
