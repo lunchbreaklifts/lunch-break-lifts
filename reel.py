@@ -20,7 +20,7 @@ SLIDE_H = 1350
 FADE = 0.3
 FPS = 30
 ZOOM = 0.07  # how far each slide zooms over its time on screen (7%)
-VERSION = "3"  # footage style; bump to re-render queued Reels
+VERSION = "4"  # footage style; bump to re-render queued Reels
 PLAIN_VERSION = "2"
 
 

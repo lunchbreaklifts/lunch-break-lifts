@@ -41,7 +41,7 @@ FALLBACK = ["gym workout", "weight training", "strength training"]
 def queries_for(post):
     text = f"{post.get('hook', '')} {post.get('slides', '')}".lower()
     found = [q for pat, q in TOPICS if re.search(pat, text)]
-    return (found[:2] or []) + FALLBACK[:1]
+    return found[:2] + FALLBACK
 
 
 def search(query, key):
@@ -72,6 +72,11 @@ def download(url):
 
 
 PIXABAY_API = "https://pixabay.com/api/videos/"
+# Pixabay's search is loose (coffee beans for "press"), so only keep clips tagged as training.
+FIT_TAGS = re.compile(r"\b(gym|fitness|workout|exercis\w*|training|train|dumbbells?|weights?|"
+                      r"weightlifting|barbell|kettlebell|muscles?|bodybuilding|crossfit|athlete|"
+                      r"squats?|push-?ups?|pull-?ups?|plank|lunges?|stretch\w*|yoga|jogging|running|"
+                      r"sport|sports|strength|cardio|walking)\b")
 
 
 def pixabay_links(query, key, min_seconds):
@@ -80,7 +85,7 @@ def pixabay_links(query, key, min_seconds):
     r.raise_for_status()
     out = []
     for hit in r.json().get("hits", []):
-        if (hit.get("duration") or 0) < min_seconds:
+        if (hit.get("duration") or 0) < min_seconds or not FIT_TAGS.search((hit.get("tags") or "").lower()):
             continue
         vids = hit.get("videos") or {}
         # smallest file that's still at least 720 tall; it gets cropped to portrait behind dark text
