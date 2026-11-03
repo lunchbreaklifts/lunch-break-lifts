@@ -53,6 +53,6 @@
   ],
   "reel_footage": true,
   "youtube_shorts": true,
-  "pinterest": true,
+  "pinterest": false,
   "trial_reels": true
 }

@@ -28,8 +28,8 @@ Fully automated content pipeline running free on GitHub Actions:
 - **Re-post winners:** Reels that beat the page average get re-posted after 30 days with a new hook and song (1 a week).
 - **Built to loop:** each Reel starts with a quick zoom on a big hook and ends by fading back
   into that hook, so replays look seamless.
-- **YouTube Shorts and Pinterest:** every Reel is also uploaded as a YouTube Short and a
-  Pinterest video Pin (board "Lunch Break Workouts"), once their keys are added.
+- **YouTube Shorts:** every Reel is also uploaded as a YouTube Short, once its keys are added.
+  (Pinterest posting exists too but is off: `"pinterest": false`.)
 - **Trial Reels:** from 1,000 followers, re-posted winners go out as Trial Reels (shown to
   non-followers first; Instagram adds them to the profile if they do well).
 - **Replying to @you:** real follower questions from comments become posts that tag them.
