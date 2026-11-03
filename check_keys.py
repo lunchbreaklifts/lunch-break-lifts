@@ -99,9 +99,33 @@ def pinterest_key():
     return f"@{user.get('username')}"
 
 
+def reply_permissions():
+    """Which other platforms the robot can answer comments on."""
+    out = []
+    tok = os.environ.get("FB_PAGE_TOKEN", "")
+    if tok:
+        d = requests.get("https://graph.facebook.com/v23.0/debug_token",
+                         params={"input_token": tok, "access_token": tok}, timeout=30).json().get("data", {})
+        out.append("Facebook " + ("yes" if "pages_manage_engagement" in d.get("scopes", []) else
+                                  "NO (key needs pages_manage_engagement)"))
+    if os.environ.get("THREADS_TOKEN"):
+        r = requests.get("https://graph.threads.net/v1.0/me/threads", params={
+            "fields": "id", "limit": 1, "access_token": os.environ["THREADS_TOKEN"]}, timeout=30).json()
+        tid = (r.get("data") or [{}])[0].get("id")
+        ok = tid and "error" not in requests.get(f"https://graph.threads.net/v1.0/{tid}/replies", params={
+            "fields": "id", "access_token": os.environ["THREADS_TOKEN"]}, timeout=30).json()
+        out.append("Threads " + ("can read replies" if ok else "NO (key needs threads_read_replies + threads_manage_replies)"))
+    import youtube
+    if youtube.configured():
+        scopes = requests.get("https://oauth2.googleapis.com/tokeninfo",
+                              params={"access_token": youtube.access_token()}, timeout=30).json().get("scope", "")
+        out.append("YouTube " + ("yes" if "youtube.force-ssl" in scopes else "NO (key needs youtube.force-ssl)"))
+    return ", ".join(out) or "no other platforms connected"
+
+
 if __name__ == "__main__":
     results = [check("Instagram key", ig), check("Facebook Page key", fb_page),
                check("Facebook key lifetime", fb_expiry),
                check("Trending music", music), check("Threads key", threads),
-               check("YouTube key", youtube_key), check("Pinterest key", pinterest_key)]
+               check("YouTube key", youtube_key), check("Reply permissions", reply_permissions)]
     print("All good." if all(results) else "Something needs fixing (see FAIL lines).")

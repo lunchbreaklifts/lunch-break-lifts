@@ -33,6 +33,10 @@ Fully automated content pipeline running free on GitHub Actions:
 - **Trial Reels:** from 1,000 followers, re-posted winners go out as Trial Reels (shown to
   non-followers first; Instagram adds them to the profile if they do well).
 - **Replying to @you:** real follower questions from comments become posts that tag them.
+- **Replies everywhere:** the same comment replies also run on the Facebook, Threads and
+  YouTube copies (where a key has reply permission). Plan requests there get the link.
+- **Report page:** https://lunchbreaklifts.github.io/lunch-break-lifts/report/ is rebuilt every
+  night: followers, views per post, top posts, and what's working. Only the page's own numbers.
 - **Every Wednesday:** the Instagram and Threads keys are renewed automatically.
 
 Workouts are built from real exercises in the open

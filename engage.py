@@ -571,13 +571,18 @@ def write_summary(token, state, me):
 
     if needs:
         lines += ["", "### 👉 Needs you (open the post in Instagram to see the comment)"]
-        lines += [f"- {post_link(e['post'])}: {e['reason']}" for e in needs]
+        lines += [f"- {post_link(e['post'])}{' (on ' + e['platform'] + ')' if e.get('platform') else ''}: "
+                  f"{e['reason']}" for e in needs]
     if dms:
         lines += ["", f"### 📩 Free plan sent to {len(dms)} people today"]
         lines += [f"_Total people who've asked for the plan: {len(state.get('dm_sent', {}))}_"]
     if replied:
         lines += ["", "### Robot replies"]
-        lines += [f"- on {post_link(e['post'])}: \"{e['reply']}\"" for e in replied]
+        lines += [f"- on {post_link(e['post'])}{' (' + e['platform'] + ')' if e.get('platform') else ''}: "
+                  f"\"{e['reply']}\"" for e in replied]
+    links_sent = [e for e in recent if e["action"] == "plan link"]
+    if links_sent:
+        lines += ["", f"_Plan link sent as a reply on Facebook/Threads/YouTube: {len(links_sent)}_"]
     lines += ["", "Check your Instagram DMs too. The robot doesn't read or answer those. "
               "If someone DMs \"delete\" or asks to be left alone, tell Claude and they'll be forgotten."]
 
@@ -611,6 +616,12 @@ def main():
             print("No ANTHROPIC_API_KEY set; skipping replies.")
         else:
             me = run_replies(token, state)
+            try:  # same replies on the Facebook, Threads and YouTube copies
+                import anthropic
+                from cross_replies import run_all
+                run_all(state, anthropic.Anthropic(), MAX_REPLIES_PER_RUN)
+            except Exception as e:
+                print(f"  other-platform replies skipped ({str(e)[:160]})")
     if not DRY_RUN:
         save_state(state)
     if SUMMARY:
