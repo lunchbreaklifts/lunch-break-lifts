@@ -279,6 +279,41 @@ def run_replies(token, state):
     return me
 
 
+def comment_targets(limit=5):
+    """Newest posts from big fitness accounts, for your 10 minutes of real commenting.
+    Uses Instagram's Business Discovery (public business/creator accounts only). Never comments itself."""
+    tok = os.environ.get("FB_PAGE_TOKEN", "").strip()
+    me = os.environ.get("IG_USER_ID", "").strip()
+    names = CONFIG.get("comment_targets", [])
+    if not (tok and me and names):
+        return []
+    found = []
+    for name in names:
+        try:
+            r = requests.get(f"https://graph.facebook.com/v23.0/{me}", timeout=30, params={
+                "fields": f"business_discovery.username({name}){{username,followers_count,"
+                          f"media.limit(1){{permalink,timestamp,like_count,comments_count}}}}",
+                "access_token": tok}).json()
+            bd = r.get("business_discovery") or {}
+            m = ((bd.get("media") or {}).get("data") or [None])[0]
+            if not m:
+                continue
+            age_h = (datetime.now(TZ) - datetime.fromisoformat(m["timestamp"].replace("+0000", "+00:00"))).total_seconds() / 3600
+            if age_h <= 36:
+                found.append((age_h, bd["username"], bd.get("followers_count", 0), m["permalink"]))
+        except Exception:
+            continue
+    found.sort()
+    if not found:
+        return []
+    lines = ["", "## 💬 Where to comment today (10 min)",
+             "Fresh posts from big accounts. Leave a real, specific comment from @lunch_breaklifts "
+             "(a tip, a question, or what you'd add). Early comments on big posts get seen."]
+    for age_h, user, fol, link in found[:limit]:
+        lines.append(f"- @{user} ({fol:,} followers, posted {age_h:.0f}h ago): {link}")
+    return lines
+
+
 def key_warnings():
     """Warn in the summary if the Facebook key is dead or about to expire."""
     tok = os.environ.get("FB_PAGE_TOKEN", "").strip()
@@ -476,6 +511,7 @@ def write_summary(token, state, me):
     if now.weekday() == 6:  # Sunday
         lines += week_in_review(token, posts, now, history)
 
+    lines += comment_targets()
     lines += key_warnings()
 
     queue = sum(1 for p in load_posts() if p["status"].lower() == "rendered")

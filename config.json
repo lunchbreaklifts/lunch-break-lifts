@@ -54,5 +54,17 @@
   "reel_footage": true,
   "youtube_shorts": true,
   "pinterest": false,
-  "trial_reels": true
+  "trial_reels": true,
+  "comment_targets": [
+    "jeffnippard",
+    "athleanx",
+    "squat_university",
+    "mindpumpmedia",
+    "garagegymreviews",
+    "menshealthmag",
+    "womenshealthmag",
+    "drjohnrusin",
+    "bretcontreras1",
+    "stefi_cohen"
+  ]
 }
