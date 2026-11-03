@@ -24,7 +24,7 @@ from playwright.sync_api import sync_playwright
 from common import CONFIG, OUTPUT, ROOT, load_posts, save_posts, split_slides
 import os
 
-from reel import VERSION as REEL_VERSION, make_footage_reel, make_reel, reading_time
+from reel import VERSION as REEL_VERSION, make_footage_reel, make_reel, reading_time, total_seconds
 from footage import clips_for
 
 WIDTH, HEIGHT = 1080, 1350
@@ -67,11 +67,12 @@ def page(inner):
     return f"<!doctype html><html><head><meta charset='utf-8'><style>{BASE_CSS}</style></head><body>{inner}</body></html>"
 
 
-def cover_slide(hook, swipe=True):
+def cover_slide(hook, swipe=True, big=False):
     hint = '<span class="swipe">SWIPE &rarr;</span>' if swipe else "<span></span>"
+    size = ' style="font-size:136px"' if big else ""  # Reels: bigger hook for the first second (shrinks to fit)
     return page(f"""
       <div class="top"><span>{html.escape(CONFIG['page_name'].upper())}</span></div>
-      <div class="main"><div class="bar"></div><div class="hook">{html.escape(hook)}</div></div>
+      <div class="main"><div class="bar"></div><div class="hook"{size}>{html.escape(hook)}</div></div>
       <div class="bottom"><span>{html.escape(CONFIG['handle'])}</span>{hint}</div>
     """)
 
@@ -130,7 +131,7 @@ TRANSPARENT = "<style>html,body{background:transparent !important}</style>"
 
 def render_overlays(tab, row, body, total, out_dir):
     """Same slides as the carousel, but with a see-through background, for laying over footage."""
-    pages = [cover_slide(row["hook"], swipe=False)]
+    pages = [cover_slide(row["hook"], swipe=False, big=True)]
     pages += [body_slide(text, i + 2, total) for i, text in enumerate(body)]
     pages.append(cta_slide())
     paths = []
@@ -235,9 +236,9 @@ def main():
                         for o in overlays:  # keep the repo small; only the finished video is needed
                             o.unlink(missing_ok=True)
                         if made:
-                            reel_note = f" + footage reel ({sum(durations):.0f}s)"
+                            reel_note = f" + footage reel ({total_seconds(durations):.0f}s)"
                 if not made and make_reel(out_dir, frames, durations):
-                    reel_note = f" + reel ({sum(durations):.0f}s)"
+                    reel_note = f" + reel ({total_seconds(durations):.0f}s)"
 
             row["status"] = "rendered"
             print(f"  [{row['id']}] {len(slides)} slides{reel_note} -> {out_dir.relative_to(ROOT)}")

@@ -51,5 +51,8 @@
     "12:00",
     "18:00"
   ],
-  "reel_footage": true
+  "reel_footage": true,
+  "youtube_shorts": true,
+  "pinterest": true,
+  "trial_reels": true
 }

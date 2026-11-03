@@ -26,6 +26,12 @@ Fully automated content pipeline running free on GitHub Actions:
   when followers are online and saves better slots to `best_times.json` automatically.
 - **First comment:** right after each post, the robot comments a "Comment LIFT for the plan" invite.
 - **Re-post winners:** Reels that beat the page average get re-posted after 30 days with a new hook and song (1 a week).
+- **Built to loop:** each Reel starts with a quick zoom on a big hook and ends by fading back
+  into that hook, so replays look seamless.
+- **YouTube Shorts and Pinterest:** every Reel is also uploaded as a YouTube Short and a
+  Pinterest video Pin (board "Lunch Break Workouts"), once their keys are added.
+- **Trial Reels:** from 1,000 followers, re-posted winners go out as Trial Reels (shown to
+  non-followers first; Instagram adds them to the profile if they do well).
 - **Replying to @you:** real follower questions from comments become posts that tag them.
 - **Every Wednesday:** the Instagram and Threads keys are renewed automatically.
 
@@ -96,6 +102,14 @@ Create a key at https://console.anthropic.com and add a few dollars of credit.
   in a short key that expires in an hour.
 - `THREADS_TOKEN`: from the app's Threads use case > Settings > User Token Generator
   (lunch_breaklifts must be a Threads Tester).
+- `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN`: YouTube Shorts. A Google Cloud
+  project with the YouTube Data API v3 on, an OAuth client (Web application, redirect
+  `https://developers.google.com/oauthplayground`), consent screen published "In production",
+  and a refresh token from the OAuth Playground for the `youtube.upload` and `youtube.readonly` scopes,
+  signed in as the page's Google account (which owns the Lunch Break Lifts channel).
+- `PINTEREST_APP_ID`, `PINTEREST_APP_SECRET`, `PINTEREST_REFRESH_TOKEN`: a Pinterest business
+  account and developer app (scopes boards:read, boards:write, pins:read, pins:write,
+  user_accounts:read). Pins are only visible to you until Pinterest approves Standard access.
 - Any of these can be left out; that feature is just skipped.
 
 ### 7. Start it
@@ -119,7 +133,7 @@ Facebook key never expires) without posting anything.
 | `"posts_per_batch"` | Posts generated each Sunday (14 = two a day). |
 | `"posts_per_day": 2` | Max posts per day (the evening slot skips itself if set to 1). |
 | `"reel_cycle": 1` | Every post is a Reel. Set `3` for 2 Reels then 1 carousel, `2` to alternate. |
-| `"reel_music"`, `"facebook_reels"`, `"threads"`, `"stories"` | Set any to `false` to turn that feature off. |
+| `"reel_music"`, `"facebook_reels"`, `"threads"`, `"stories"`, `"youtube_shorts"`, `"pinterest"`, `"trial_reels"` | Set any to `false` to turn that feature off. |
 | `"lead_magnet"` | Keyword, plan link, and on/off for the comment-for-the-plan DMs. |
 | `"challenge"` | Start date (a Monday) and on/off for the Day N/30 series. |
 | `"auto_reply_comments": false` | Stops comment replies (the nightly summary still comes). |

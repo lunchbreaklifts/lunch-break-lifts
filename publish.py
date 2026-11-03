@@ -21,6 +21,7 @@ import os
 import sys
 import time
 from datetime import datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import requests
@@ -98,8 +99,19 @@ class Instagram:
             time.sleep(5)
         raise RuntimeError(f"Timed out waiting for {label} to process.")
 
-    def publish_reel(self, video_url, caption, cover_url="", audio_id=""):
+    def publish_reel(self, video_url, caption, cover_url="", audio_id="", trial=False):
+        if trial is True:
+            try:
+                return self.publish_reel(video_url, caption, cover_url, audio_id, trial={
+                    "graduation_strategy": "SS_PERFORMANCE"})
+            except RuntimeError as e:
+                print(f"    trial Reel not accepted ({e}); posting it normally.")
+                trial = False
         params = dict(media_type="REELS", video_url=video_url, caption=caption, share_to_feed="true")
+        if isinstance(trial, dict):
+            # Trial Reel: shown to non-followers first; Instagram adds it to the profile if it does well.
+            params["trial_params"] = json.dumps(trial)
+            params.pop("share_to_feed")
         if cover_url:
             params["cover_url"] = cover_url  # grid thumbnail matches the carousel covers
         if audio_id:
@@ -219,9 +231,10 @@ def main():
             cover = OUTPUT / post["id"] / "reel_cover.jpg"
             cover_url = f"{base}/{cover.relative_to(ROOT).as_posix()}" if cover.exists() else ""
             try:
-                media_id = publish_reel_with_music(user_id, post, reel_url, caption, cover_url)
+                trial = use_trial_reel(ig, post)
+                media_id = publish_reel_with_music(user_id, post, reel_url, caption, cover_url, trial)
                 if not media_id:
-                    media_id = ig.publish_reel(reel_url, caption, cover_url)
+                    media_id = ig.publish_reel(reel_url, caption, cover_url, trial=trial)
             except RuntimeError as e:
                 if not cover_url:
                     raise
@@ -235,15 +248,17 @@ def main():
     post["status"] = "published"
     post["published_at"] = datetime.now(TZ).isoformat(timespec="seconds")
     post["media_id"] = media_id
-    post["format"] = "reel" if reel_url else "carousel"
+    post["format"] = (post.get("format") if post.get("format") == "trial reel" else "reel") if reel_url else "carousel"
     save_posts(rows)
     print(f"Published as a {'reel' if reel_url else 'carousel'}! Media ID {media_id}")
     first_comment(ig, post, media_id)
     share_to_story(ig, post, base)
     if reel_url:
         share_to_facebook(post, reel_url, caption)
+        share_to_youtube(post, reel_file, caption)
     share_to_threads(post, urls[0])
-    save_posts(rows)  # keep the Facebook / Threads IDs too
+    share_to_pinterest(post, urls[0], reel_file if reel_url else None)
+    save_posts(rows)  # keep the Facebook / Threads / YouTube / Pinterest IDs too
     cleanup_old_media(rows)
 
 
@@ -279,22 +294,38 @@ def with_cta(caption):
     return f"{caption}\n\nComment {kw} and I'll DM you my free 30-day lunch break workout plan."
 
 
-def publish_reel_with_music(user_id, post, reel_url, caption, cover_url):
+def use_trial_reel(ig, post):
+    """Re-posted winners go out as Trial Reels (non-followers first) once the account is big enough.
+    Instagram only allows Trial Reels from 1,000 followers."""
+    if not CONFIG.get("trial_reels", True) or not post.get("repost_of"):
+        return False
+    try:
+        followers = int(ig.call("GET", ig.user_id, fields="followers_count").get("followers_count", 0))
+    except Exception:
+        return False
+    if followers < 1000:
+        return False
+    print("    posting as a Trial Reel (shown to non-followers first)")
+    post["format"] = "trial reel"
+    return True
+
+
+def publish_reel_with_music(user_id, post, reel_url, caption, cover_url, trial=False):
     """Post the Reel with a trending song. Returns the media ID, or None to post it without music."""
     fb_token = os.environ.get("FB_PAGE_TOKEN", "").strip()
     if not fb_token or not CONFIG.get("reel_music", True):
         return None
     try:
         from audio import mark_used, pick_audio
-        from reel import reading_time
-        body = [t for t in post["slides"].split(SLIDE_SEP) if t.strip()]
-        seconds = reading_time("", first=True) + sum(reading_time(t) for t in body) + reading_time("", last=True)
+        from reel import reading_time, total_seconds
+        body = [t for t in post["slides"].split(SLIDE_SEP) if t.strip()][:8]
+        seconds = total_seconds([reading_time("", first=True)] + [reading_time(t) for t in body] + [reading_time("", last=True)])
         song = pick_audio(user_id, fb_token, seconds, post["hook"])
         if not song:
             return None
         print(f"    music: {song.get('title')} by {song.get('display_artist')}")
         fb = Instagram(user_id, fb_token, api=f"https://graph.facebook.com/{CONFIG.get('facebook_api_version', 'v23.0')}")
-        media_id = fb.publish_reel(reel_url, caption, cover_url, audio_id=song["audio_id"])
+        media_id = fb.publish_reel(reel_url, caption, cover_url, audio_id=song["audio_id"], trial=trial)
     except Exception as e:  # music is a bonus; never lose the post over it
         print(f"    couldn't add music ({e}); posting without it.")
         return None
@@ -332,6 +363,42 @@ def share_to_threads(post, cover_url):
         print(f"    shared to Threads ({tid})")
     except Exception as e:
         print(f"    couldn't share to Threads ({e}); Instagram post is fine.")
+
+
+def share_to_youtube(post, reel_file, caption):
+    """Upload the same video as a YouTube Short. Never blocks anything."""
+    if not CONFIG.get("youtube_shorts", True):
+        return
+    try:
+        import youtube
+        if not youtube.configured():
+            return
+        vid, privacy = youtube.upload_short(str(reel_file), post, caption)
+        post["youtube_id"] = vid
+        note = "" if privacy in ("", "public") else f" (YouTube set it to {privacy})"
+        print(f"    shared to YouTube Shorts ({vid}){note}")
+    except Exception as e:
+        print(f"    couldn't share to YouTube ({e}); Instagram post is fine.")
+
+
+def share_to_pinterest(post, cover_url, reel_file=None):
+    """Post a Pin (video when there's a Reel). Never blocks anything."""
+    if not CONFIG.get("pinterest", True):
+        return
+    try:
+        import pinterest
+        if not pinterest.configured():
+            return
+        cover = cover_url
+        if reel_file:
+            c = Path(reel_file).with_name("reel_cover.jpg")
+            if c.exists():
+                cover = f"{image_base_url()}/{c.relative_to(ROOT).as_posix()}"
+        pid = pinterest.post_pin(post, cover, str(reel_file) if reel_file else None)
+        post["pinterest_id"] = pid
+        print(f"    shared to Pinterest ({pid})")
+    except Exception as e:
+        print(f"    couldn't share to Pinterest ({e}); Instagram post is fine.")
 
 
 FIRST_COMMENTS = [

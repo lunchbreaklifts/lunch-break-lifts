@@ -77,8 +77,31 @@ def threads():
     return f"@{r['username']}"
 
 
+def youtube_key():
+    import youtube
+    if not youtube.configured():
+        return "not connected yet (skipped)"
+    token = youtube.access_token()
+    r = requests.get(f"{youtube.API}/channels", params={"part": "snippet", "mine": "true"},
+                     headers={"Authorization": f"Bearer {token}"}, timeout=30).json()
+    items = r.get("items") or []
+    if not items:
+        raise RuntimeError("key works, but that Google account has no YouTube channel yet")
+    return f"channel '{items[0]['snippet']['title']}'"
+
+
+def pinterest_key():
+    import pinterest
+    if not pinterest.configured():
+        return "not connected yet (skipped)"
+    token = pinterest.access_token()
+    user = pinterest._call("GET", "user_account", token)
+    return f"@{user.get('username')}"
+
+
 if __name__ == "__main__":
     results = [check("Instagram key", ig), check("Facebook Page key", fb_page),
                check("Facebook key lifetime", fb_expiry),
-               check("Trending music", music), check("Threads key", threads)]
+               check("Trending music", music), check("Threads key", threads),
+               check("YouTube key", youtube_key), check("Pinterest key", pinterest_key)]
     print("All good." if all(results) else "Something needs fixing (see FAIL lines).")
