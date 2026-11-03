@@ -171,7 +171,8 @@ def main():
     rows = load_posts()
     todo = [r for r in rows if r["status"].lower() == "approved"]
     stories = "--stories" in sys.argv and CONFIG.get("stories", True)
-    use_footage = CONFIG.get("reel_footage", True) and bool(os.environ.get("PEXELS_API_KEY"))
+    from footage import available as footage_available
+    use_footage = CONFIG.get("reel_footage", True) and footage_available()
     if "--refresh-reels" in sys.argv and CONFIG.get("reels", True):
         if use_footage:
             # queued Reels from before footage existed get fully re-rendered with footage

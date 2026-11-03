@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Background workout footage for Reels, from Pexels (free to use, no attribution required:
-https://www.pexels.com/license/).
+Background workout footage for Reels, from Pixabay or Pexels (both free for commercial use,
+no attribution required: https://pixabay.com/service/license-summary/ , https://www.pexels.com/license/).
 
-Needs PEXELS_API_KEY. Without it, Reels use the plain dark background like before.
+Needs PIXABAY_API_KEY or PEXELS_API_KEY. Without either, Reels use the plain dark background.
 Clips are picked to match what the post is about (kettlebell, push-ups, stretching...),
 a different clip for each slide, and cached so a week's renders don't re-download.
 """
@@ -71,25 +71,52 @@ def download(url):
     return path
 
 
+PIXABAY_API = "https://pixabay.com/api/videos/"
+
+
+def pixabay_links(query, key, min_seconds):
+    r = requests.get(PIXABAY_API, timeout=30, params={
+        "key": key, "q": query, "video_type": "film", "safesearch": "true", "per_page": 50})
+    r.raise_for_status()
+    out = []
+    for hit in r.json().get("hits", []):
+        if (hit.get("duration") or 0) < min_seconds:
+            continue
+        vids = hit.get("videos") or {}
+        # smallest file that's still at least 720 tall; it gets cropped to portrait behind dark text
+        files = [v for v in vids.values() if v and v.get("url") and (v.get("height") or 0) >= 720]
+        if files:
+            out.append((hit["id"], min(files, key=lambda v: v.get("size") or 1e12)["url"]))
+    return out
+
+
+def available():
+    return bool(os.environ.get("PIXABAY_API_KEY", "").strip() or os.environ.get("PEXELS_API_KEY", "").strip())
+
+
 def clips_for(post, count, min_seconds):
     """Return `count` local clip paths (may repeat if few results), or [] if footage isn't available."""
+    pix = os.environ.get("PIXABAY_API_KEY", "").strip()
     key = os.environ.get("PEXELS_API_KEY", "").strip()
-    if not key:
+    if not (pix or key):
         return []
     rng = random.Random(post.get("id", ""))
     pool, seen = [], set()
     for q in queries_for(post):
         try:
-            vids = search(q, key)
+            if pix:
+                found = pixabay_links(q, pix, min_seconds)
+            else:
+                found = [(v["id"], best_file(v)["link"]) for v in search(q, key)
+                         if best_file(v) and (v.get("duration") or 0) >= min_seconds]
         except Exception as e:
             print(f"    footage search '{q}' failed: {e}")
             continue
-        rng.shuffle(vids)
-        for v in vids:
-            f = best_file(v)
-            if f and v["id"] not in seen and (v.get("duration") or 0) >= min_seconds:
-                seen.add(v["id"])
-                pool.append(f["link"])
+        rng.shuffle(found)
+        for vid, link in found:
+            if vid not in seen:
+                seen.add(vid)
+                pool.append(link)
         if len(pool) >= count:
             break
     if not pool:

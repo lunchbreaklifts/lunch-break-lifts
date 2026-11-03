@@ -19,8 +19,8 @@ Fully automated content pipeline running free on GitHub Actions:
   Captions invite people to comment the keyword.
 - **30-Day Lunch Break Challenge:** from the start date in `config.json`, the lunch post each day
   is "Day N/30", written from `challenge.json` (edit `challenge.py`, then run it to rebuild both).
-- **Workout footage:** with `PEXELS_API_KEY` set, Reels use real stock workout clips (Pexels, free
-  license) behind the text, matched to the post's topic. Without it, the plain dark style.
+- **Workout footage:** with `PIXABAY_API_KEY` (or `PEXELS_API_KEY`) set, Reels use real stock workout clips
+  (free license) behind the text, matched to the post's topic. Without it, the plain dark style.
 - **Best posting times:** the posting job checks hourly and posts at the slots in `config.json`
   (`post_slots`, default 12:00 and 18:00). Once the account has 100+ followers, the Sunday job reads
   when followers are online and saves better slots to `best_times.json` automatically.
