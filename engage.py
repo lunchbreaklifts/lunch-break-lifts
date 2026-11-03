@@ -364,10 +364,12 @@ def comment_targets(limit=5):
     if not found:
         return []
     lines = ["", "## 💬 Where to comment today (10 min)",
-             "Fresh posts from big accounts. Leave a real, specific comment from @lunch_breaklifts "
+             "Fresh posts from big accounts. Leave a real, specific comment from the page "
              "(a tip, a question, or what you'd add). Early comments on big posts get seen."]
     for age_h, user, fol, link in found[:limit]:
-        lines.append(f"- @{user} ({fol:,} followers, posted {age_h:.0f}h ago): {link}")
+        # no "@name" here: on GitHub that would notify whoever owns that GitHub username
+        lines.append(f"- [{user}](https://www.instagram.com/{user}/) ({fol:,} followers, "
+                     f"posted {age_h:.0f}h ago): {link}")
     return lines
 
 
