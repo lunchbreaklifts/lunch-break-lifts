@@ -41,6 +41,7 @@ jobs:
 
       - name: Render slides
         env:
+          PIXABAY_API_KEY: ${{ secrets.PIXABAY_API_KEY }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         run: python render_slides.py --stories --refresh-reels
 
