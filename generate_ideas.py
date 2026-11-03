@@ -426,10 +426,6 @@ Call save_posts with exactly one post (exercises: empty list)."""
         save_posts(load_posts() + new_rows)
 
 
-if __name__ == "__main__":
-    main()
-
-
 # ---------------------------------------------------------------- re-post winners
 def add_reposts(per_week=1, min_age_days=30):
     """Bring back the best Reels after a month with a fresh hook, caption and (at publish) a new song."""
@@ -499,3 +495,7 @@ Call save_posts with exactly one post: copy the slides unchanged, 6-9 hashtags, 
         print(f"  [repost] {orig['hook']}  ->  {post['hook']}")
     if new_rows:
         save_posts(rows + new_rows)
+
+
+if __name__ == "__main__":
+    main()
