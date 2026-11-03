@@ -42,6 +42,7 @@ jobs:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
           WANT_SUMMARY: ${{ github.event.schedule == '7 2 * * *' || inputs.summary == true }}
         run: |
           if [ "$WANT_SUMMARY" = "true" ]; then
