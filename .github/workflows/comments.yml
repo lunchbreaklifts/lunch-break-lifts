@@ -44,10 +44,16 @@ jobs:
           FB_PAGE_TOKEN: ${{ secrets.FB_PAGE_TOKEN }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           FORGET_USERS: ${{ secrets.FORGET_USERS }}
+          THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
           WANT_SUMMARY: ${{ github.event.schedule == '7 2 * * *' || inputs.summary == true }}
         run: |
           if [ "$WANT_SUMMARY" = "true" ]; then
+            python insights.py || true   # fresh numbers for the summary and the report page
             python engage.py --summary
+            python report.py || true
           else
             python engage.py
           fi
@@ -65,7 +71,7 @@ jobs:
         run: |
           git config user.name "content-bot"
           git config user.email "content-bot@users.noreply.github.com"
-          git add engage_state.json 2>/dev/null || true
+          git add engage_state.json stats.csv report/index.html 2>/dev/null || true
           git diff --cached --quiet && exit 0
           git commit -m "Comment replies"
           git pull --rebase
