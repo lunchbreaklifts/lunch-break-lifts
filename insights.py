@@ -29,9 +29,10 @@ STAT_FIELDS = ["id", "media_id", "format", "hook", "published_at", "checked_at"]
 
 
 def score(row):
-    """Saves and shares matter most for growth, then comments, then likes."""
+    """Saves and shares matter most for growth, then comments, then likes. Views count a little
+    (every 20 views = 1 point) so early posts with no saves still rank sensibly."""
     n = lambda k: int(row.get(k) or 0)
-    return n("saved") * 4 + n("shares") * 4 + n("comments") * 2 + n("likes")
+    return n("saved") * 4 + n("shares") * 4 + n("comments") * 2 + n("likes") + n("views") // 20
 
 
 def fetch(media_id, token):

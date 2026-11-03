@@ -19,6 +19,8 @@ Fully automated content pipeline running free on GitHub Actions:
   Captions invite people to comment the keyword.
 - **30-Day Lunch Break Challenge:** from the start date in `config.json`, the lunch post each day
   is "Day N/30", written from `challenge.json` (edit `challenge.py`, then run it to rebuild both).
+- **First comment:** right after each post, the robot comments a "Comment LIFT for the plan" invite.
+- **Re-post winners:** Reels that beat the page average get re-posted after 30 days with a new hook and song (1 a week).
 - **Replying to @you:** real follower questions from comments become posts that tag them.
 - **Every Wednesday:** the Instagram and Threads keys are renewed automatically.
 

@@ -231,6 +231,7 @@ def main():
     post["format"] = "reel" if reel_url else "carousel"
     save_posts(rows)
     print(f"Published as a {'reel' if reel_url else 'carousel'}! Media ID {media_id}")
+    first_comment(ig, post, media_id)
     share_to_story(ig, post, base)
     if reel_url:
         share_to_facebook(post, reel_url, caption)
@@ -313,6 +314,29 @@ def share_to_threads(post, cover_url):
         print(f"    shared to Threads ({tid})")
     except Exception as e:
         print(f"    couldn't share to Threads ({e}); Instagram post is fine.")
+
+
+FIRST_COMMENTS = [
+    "Comment {kw} and I'll DM you the full 30-day plan 👇",
+    "Want the whole 30 days? Comment {kw} 👇",
+    "Comment {kw} for the free 30-day lunch break plan",
+    "Drop a {kw} below and I'll send you all 30 days",
+    "{kw} 👈 comment that and the free plan lands in your DMs",
+]
+
+
+def first_comment(ig, post, media_id):
+    """Start the comments with the free-plan invite so new viewers see it right away."""
+    lead = CONFIG.get("lead_magnet", {})
+    if not (CONFIG.get("first_comment", True) and lead.get("enabled") and lead.get("keyword")):
+        return
+    import random
+    text = random.choice(FIRST_COMMENTS).format(kw=lead["keyword"])
+    try:
+        ig.call("POST", f"{media_id}/comments", message=text)
+        print(f"    first comment posted: {text}")
+    except Exception as e:
+        print(f"    couldn't post the first comment ({e}); the post is fine.")
 
 
 def share_to_story(ig, post, base):

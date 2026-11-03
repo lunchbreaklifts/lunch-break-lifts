@@ -340,8 +340,57 @@ def week_in_review(token, posts, now, history):
     if len(scored) > 1:
         lines.append(f"**Weakest:** {worst[1]['hook']}: views {worst[2].get('views', 0)}")
     lines.append("The robot feeds these into next week's posts automatically.")
+    lines += whats_working()
     lines += boost_tip(scored)
     return lines
+
+
+def whats_working():
+    """Plain-English patterns from every post so far (stats.csv is refreshed each Sunday)."""
+    from insights import load_stats
+    stats = {k: v for k, v in load_stats().items()}
+    posts = {p["id"]: p for p in load_posts()}
+    rows = []
+    for pid, st in stats.items():
+        p = posts.get(pid, {})
+        try:
+            when = datetime.fromisoformat(st["published_at"]).astimezone(TZ)
+        except (KeyError, ValueError):
+            continue
+        if (datetime.now(TZ) - when).days < 2:  # too new to judge
+            continue
+        hour = when.hour
+        rows.append({"hook": st.get("hook", ""), "views": int(st.get("views") or 0),
+                     "slot": "lunch" if hour < 15 else "evening",
+                     "music": bool(p.get("audio")), "format": st.get("format") or p.get("format") or "post",
+                     "challenge": p.get("series") == "challenge"})
+    if len(rows) < 4:
+        return []
+
+    def avg(group):
+        return round(sum(r["views"] for r in group) / len(group)) if group else None
+
+    def compare(label, a_name, a, b_name, b):
+        va, vb = avg(a), avg(b)
+        if va is None or vb is None:
+            return None
+        return f"- {label}: {a_name} avg **{va}** views vs {b_name} **{vb}** ({len(a)} vs {len(b)} posts)"
+
+    out = ["", "### 📈 What's working"]
+    top = sorted(rows, key=lambda r: r["views"], reverse=True)
+    out.append("Top hooks so far:")
+    out += [f"{i}. {r['hook']} ({r['views']} views)" for i, r in enumerate(top[:3], 1)]
+    if len(top) > 5:
+        out.append(f"Weakest: {top[-1]['hook']} ({top[-1]['views']} views)")
+    for line in (
+        compare("Format", "Reels", [r for r in rows if r["format"] == "reel"], "carousels", [r for r in rows if r["format"] != "reel"]),
+        compare("Music", "with a song", [r for r in rows if r["format"] == "reel" and r["music"]], "no song", [r for r in rows if r["format"] == "reel" and not r["music"]]),
+        compare("Time", "lunch", [r for r in rows if r["slot"] == "lunch"], "evening", [r for r in rows if r["slot"] == "evening"]),
+        compare("Challenge", "challenge days", [r for r in rows if r["challenge"]], "regular tips", [r for r in rows if not r["challenge"]]),
+    ):
+        if line:
+            out.append(line)
+    return out
 
 
 def boost_tip(scored):

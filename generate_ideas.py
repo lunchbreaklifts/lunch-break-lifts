@@ -205,6 +205,7 @@ def main():
         if count <= 0:
             print(f"Queue already has {queued} regular posts. No new regular posts this week.")
             add_challenge_posts(rows)
+            add_reposts()
             return
     past_hooks = [r["hook"] for r in rows][-HISTORY_LIMIT:]
 
@@ -293,6 +294,7 @@ def main():
     for r in new_rows:
         print(f"  [{r['id']}] {r['hook']}")
     add_challenge_posts(rows + new_rows)
+    add_reposts()
 
 
 # ---------------------------------------------------------------- follower questions
@@ -426,3 +428,74 @@ Call save_posts with exactly one post (exercises: empty list)."""
 
 if __name__ == "__main__":
     main()
+
+
+# ---------------------------------------------------------------- re-post winners
+def add_reposts(per_week=1, min_age_days=30):
+    """Bring back the best Reels after a month with a fresh hook, caption and (at publish) a new song."""
+    if not CONFIG.get("reposts", True):
+        return
+    from insights import load_stats
+    from datetime import datetime
+    stats = list(load_stats().values())
+    rows = load_posts()
+    if len(stats) < 6:
+        return
+    done = {r.get("repost_of") for r in rows if r.get("repost_of")} | {r["id"] for r in rows if r.get("repost_of")}
+    views = lambda r: int(r.get("views") or 0)
+    avg = sum(views(r) for r in stats) / len(stats)
+    by_id = {r["id"]: r for r in rows}
+    now = date.today()
+    picks = []
+    for st in sorted(stats, key=views, reverse=True):
+        orig = by_id.get(st["id"])
+        if not orig or st["id"] in done or orig.get("series") == "challenge":
+            continue
+        try:
+            age = (now - datetime.fromisoformat(st["published_at"]).date()).days
+        except ValueError:
+            continue
+        if age >= min_age_days and views(st) >= max(100, avg * 1.5):
+            picks.append((st, orig))
+        if len(picks) >= per_week:
+            break
+    if not picks:
+        return
+    client = anthropic.Anthropic()
+    lead = CONFIG.get("lead_magnet", {})
+    new_rows = []
+    for st, orig in picks:
+        prompt = f"""This Instagram Reel from "{CONFIG['page_name']}" did well ({views(st)} views). We're posting it
+again. Keep the slides exactly, but write a NEW hook and a NEW caption so it feels fresh.
+
+Old hook: {orig['hook']}
+Slides: {orig['slides']}
+Old caption: {orig['caption']}
+
+Rules: hook max 12 words, different angle from the old one, must stop the scroll. Caption 40-100 words,
+first line has a natural search phrase, ends with "Comment {lead.get('keyword', 'LIFT')} and I'll DM you the free 30-day plan."
+Voice: regular guy who lifts on his lunch break, contractions, no em dashes, no hype words, at most one emoji.
+Call save_posts with exactly one post: copy the slides unchanged, 6-9 hashtags, exercises empty."""
+        post = None
+        for _ in range(3):
+            resp = client.messages.create(model=CONFIG.get("model", "claude-sonnet-5-5"), max_tokens=8000,
+                                          tools=[POST_TOOL], tool_choice={"type": "auto"},
+                                          messages=[{"role": "user", "content": prompt}])
+            block = next((b for b in resp.content if b.type == "tool_use" and b.name == "save_posts"), None)
+            cand = (block.input.get("posts") or [None])[0] if block else None
+            if cand and cand["hook"].strip().lower() != orig["hook"].strip().lower() and not voice_problems(cand):
+                post = cand
+                break
+        if not post:
+            continue
+        new_rows.append({
+            "id": f"{now:%Y%m%d}-r{uuid.uuid4().hex[:3]}", "created": now.isoformat(),
+            "status": "approved" if CONFIG.get("auto_approve") else "draft",
+            "hook": post["hook"].strip(), "slides": orig["slides"],
+            "caption": post["caption"].strip(),
+            "hashtags": " ".join("#" + t.strip().lstrip("#").replace(" ", "") for t in post["hashtags"]),
+            "published_at": "", "media_id": "", "repost_of": orig["id"],
+        })
+        print(f"  [repost] {orig['hook']}  ->  {post['hook']}")
+    if new_rows:
+        save_posts(rows + new_rows)
