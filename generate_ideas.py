@@ -53,6 +53,9 @@ def voice_problems(post):
         problems.append("emoji on a slide")
     if text.count("!") > 2:
         problems.append("too many exclamation points")
+    own = CONFIG.get("handle", "").lstrip("@").lower()
+    if any(m.lower() != own for m in re.findall(r"@([A-Za-z0-9_.]+)", text)):
+        problems.append("tags or names someone (posts never name followers)")
     return problems
 
 POST_TOOL = {
@@ -95,7 +98,7 @@ POST_TOOL = {
                         },
                         "reply_to": {
                             "type": "string",
-                            "description": "Only for posts answering a follower question: their username, no @. Otherwise empty.",
+                            "description": "Only for posts answering a follower question: the word follower. Otherwise empty.",
                         },
                     },
                     "required": ["hook", "slides", "caption", "hashtags", "exercises"],
@@ -120,14 +123,15 @@ no-sweat lunch workouts, stretches between meetings, hotel-room workouts for wor
 fitting it around a 9/80 or shift schedule, getting back after a sick week.
 """
     if questions:
-        qs = "\n".join(f"- @{q['user']}: \"{q['comment']}\"" for q in questions)
+        qs = "\n".join(f"- \"{q['comment']}\"" for q in questions)
         extra += f"""
-Real follower questions (answer each one with its own post, it'll tag them):
+Real follower questions from the comments (answer each one with its own post):
 {qs}
-For these posts: hook starts with "Replying to @username:" followed by a short version of
-their question; slides give the answer; caption thanks them by @username in a natural way;
-set reply_to to their username. Only answer if it's a normal fitness question; skip
-anything about pain, injury, or medical issues.
+For these posts: hook starts with "A follower asked:" followed by a short, general version of
+the question (no names, no personal details); slides give the answer; caption thanks
+"whoever asked this in the comments" naturally, without naming anyone. Set reply_to to
+"follower". Only answer if it's a normal fitness question; skip anything about pain,
+injury, or medical issues.
 """
     lead = CONFIG.get("lead_magnet", {})
     if lead.get("enabled"):
@@ -288,7 +292,8 @@ def main():
             "reply_to": (post.get("reply_to") or "").strip().lstrip("@"),
         })
 
-    mark_featured([r["reply_to"] for r in new_rows if r["reply_to"]], questions)
+    if any(r["reply_to"] for r in new_rows):
+        mark_featured(questions)
     save_posts(rows + new_rows)
     print(f"Added {len(new_rows)} posts to posts.csv as '{status}':")
     for r in new_rows:
@@ -302,7 +307,9 @@ FEATURED = ROOT / "featured.json"
 
 
 def follower_questions(limit=2):
-    """Recent real questions from comments that the robot judged safe, not yet featured."""
+    """Recent normal questions from comments, not yet answered in a post. The text is read live
+    from Instagram by comment ID (the public repo never stores it), and posts answer them
+    anonymously ("A follower asked"), so nobody is named or tagged without asking."""
     try:
         log = json.loads((ROOT / "engage_state.json").read_text(encoding="utf-8")).get("log", [])
     except (FileNotFoundError, ValueError):
@@ -311,29 +318,38 @@ def follower_questions(limit=2):
         done = set(json.loads(FEATURED.read_text(encoding="utf-8")))
     except (FileNotFoundError, ValueError):
         done = set()
+    token = os.environ.get("IG_ACCESS_TOKEN", "").strip()
+    if not token:
+        return []
+    import requests
+    api = f"https://graph.instagram.com/{CONFIG.get('instagram_api_version', 'v23.0')}"
     out, seen = [], set()
     for e in reversed(log):
-        c = (e.get("comment") or "").strip()
-        if "?" not in c or len(c) < 15 or e.get("needs_human") or e.get("action") == "dm":
+        cid = e.get("cid")
+        if not cid or not e.get("question") or e.get("needs_human") or cid in done or e.get("who") in seen:
             continue
-        key = f"{e.get('user')}:{c[:60]}"
-        if key in done or e.get("user") in seen:
+        try:
+            text = requests.get(f"{api}/{cid}", params={"fields": "text", "access_token": token},
+                                timeout=30).json().get("text", "").strip()
+        except Exception:
             continue
-        seen.add(e.get("user"))
-        out.append({"user": e.get("user"), "comment": c[:200], "key": key})
+        if not text:  # deleted comment: respect that
+            continue
+        seen.add(e.get("who"))
+        out.append({"key": cid, "comment": text[:200]})
         if len(out) >= limit:
             break
     return out
 
 
-def mark_featured(users, questions):
-    if not users:
+def mark_featured(questions):
+    if not questions:
         return
     try:
         done = json.loads(FEATURED.read_text(encoding="utf-8"))
     except (FileNotFoundError, ValueError):
         done = []
-    done += [q["key"] for q in questions if q["user"] in users]
+    done += [q["key"] for q in questions]
     FEATURED.write_text(json.dumps(done[-500:], indent=1), encoding="utf-8")
 
 

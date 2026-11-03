@@ -10,6 +10,11 @@ Skipped comments that need a human are listed in the daily summary.
 Daily summary: opens (and immediately closes) a GitHub issue titled
 "Daily summary <date>". GitHub notifies you by email and in the GitHub app.
 
+Privacy: the repo, its Action logs and the summary issues are PUBLIC. So nothing here ever
+writes or prints a commenter's username or comment text. People are stored only as a
+one-way code (who()), comments only by ID, and the summary links to the post instead of
+quoting anyone. Open the link in Instagram to see the comment itself.
+
 Needs IG_ACCESS_TOKEN (with instagram_business_manage_comments) and ANTHROPIC_API_KEY.
 Never fails the workflow: problems are printed and skipped.
 
@@ -52,11 +57,21 @@ REPLY_TOOL = {
             "reply": {"type": "string", "description": "The reply text. Empty if skipping."},
             "needs_human": {"type": "boolean",
                             "description": "True if the page owner should personally look at this comment."},
-            "reason": {"type": "string", "description": "A few words on why."},
+            "reason": {"type": "string", "description": "Which kind of comment this is. Never include details from the comment.",
+                       "enum": ["simple workout question", "thanks or compliment", "tried the workout",
+                                "health or injury question", "business or collab offer",
+                                "asks if replies are automated", "shared personal details", "says they're under 18",
+                                "spam or rude", "unclear", "other"]},
         },
         "required": ["action", "reply", "needs_human", "reason"],
     },
 }
+
+
+def who(comment):
+    """One-way code for a commenter. Same person = same code; the code can't be turned back into a name."""
+    ident = (comment.get("from") or {}).get("id") or comment.get("username") or comment.get("id")
+    return hashlib.sha256(str(ident).lower().encode()).hexdigest()[:16]
 
 
 def ig(method, path, token, **params):
@@ -84,6 +99,9 @@ def save_state(state):
     state["handled"] = {k: v for k, v in state["handled"].items() if v.get("at", "") >= cutoff}
     state["log"] = [e for e in state["log"] if e.get("at", "") >= cutoff][-300:]
     state.setdefault("followers", {})  # one number per day, kept forever (tiny)
+    for e in state["log"]:  # older versions stored names and comment text; never write those again
+        e.pop("user", None)
+        e.pop("comment", None)
     STATE.write_text(json.dumps(state, indent=1), encoding="utf-8")
 
 
@@ -96,7 +114,7 @@ Someone commented on this post:
 Post headline: {post['hook']}
 Post caption: {post['caption']}
 
-Comment from @{comment['username']}: "{comment['text']}"
+Comment: "{comment['text']}"
 
 Decide whether to reply. Reply ONLY to normal, friendly comments you can answer well:
 thanks, compliments, simple questions about the workout in the post (sets, reps, swaps,
@@ -106,12 +124,17 @@ SKIP (action "skip") and set needs_human true for: brands, collabs, sponsorship 
 offers, anything about pain, injury, medical conditions, pregnancy, medication, or diet
 for a health condition, and anything you'd have to guess at.
 SKIP with needs_human false for: spam, bots, links, rude or trolling comments, single emojis.
+SKIP with needs_human true if they ask whether this is a bot, AI or automated (the owner
+answers that honestly himself), if they share personal details (health, location, age,
+contact info), or if they say they're under 18.
 
 If replying:
 - Sound like a regular guy who lifts on his lunch break. Casual, short (under 25 words),
   lowercase is fine. Contractions. No hashtags, no links.
 - At most one emoji, often none. No "Great question!" openers.
 - Never claim personal experiences, results, or credentials. Never promise anything.
+- Never claim or imply you're a person, and never deny being automated.
+- Never use their username or repeat personal details back to them.
 - Don't use em dashes or words like unlock, elevate, game-changer, level up, journey.
 - If they ask something the post doesn't cover, give a short, safe, general answer
   or skip.
@@ -137,7 +160,7 @@ Call decide."""
                 continue
             d["reply"] = text
         return d
-    return {"action": "skip", "reply": "", "needs_human": False, "reason": "couldn't write a clean reply"}
+    return {"action": "skip", "reply": "", "needs_human": False, "reason": "unclear"}
 
 
 def wants_plan(text):
@@ -151,10 +174,11 @@ def wants_plan(text):
 
 
 DM_TEXTS = [
-    "Here's the 30-Day Lunch Break Challenge 💪\n{url}\n\nSave it and start on any Monday. Questions? Just reply here.",
-    "Here you go, all 30 days: {url}\n\nEvery workout fits a lunch break. Reply here if anything's unclear.",
-    "Sent! The full 30-day plan is here: {url}\n\nDay 1 is upper body. Write down your weights, you'll want them on Day 29.",
+    "Here's the 30-Day Lunch Break Challenge 💪\n{url}\n\nSave it and start on any Monday. Questions? Drop them in the comments on any post.",
+    "Here you go, all 30 days: {url}\n\nEvery workout fits a lunch break. If anything's unclear, ask in the comments.",
+    "The full 30-day plan is here: {url}\n\nDay 1 is upper body. Write down your weights, you'll want them on Day 29.",
 ]
+DM_FOOTER = "\n\n(Sent automatically because you commented {kw}. This is the only message you'll get.)"
 PUBLIC_REPLIES = ["Sent it to your DMs 📩", "Check your DMs, it's in there", "Just sent it, check your messages",
                   "In your DMs now", "Sent 👍 check your messages"]
 
@@ -164,24 +188,28 @@ def handle_plan_request(token, state, post, c):
     lead = CONFIG["lead_magnet"]
     sent = state.setdefault("dm_sent", {})
     now = datetime.now(TZ).isoformat(timespec="seconds")
-    entry = {"at": now, "post": post["id"], "user": c["username"], "comment": c.get("text", "")[:300],
+    code = who(c)
+    entry = {"at": now, "post": post["id"], "cid": c["id"], "who": code,
              "action": "dm", "reply": "", "needs_human": False, "reason": "asked for the free plan"}
     if DRY_RUN:
-        print(f"  would DM the plan to @{c['username']}")
+        print(f"  would DM the plan to commenter {code}")
         return False
-    ident = (c.get("from") or {}).get("id") or c["username"]
-    who = hashlib.sha256(str(ident).lower().encode()).hexdigest()[:16]  # never store usernames publicly
-    already = who in sent
+    if code in state.get("forget", []):
+        print(f"  commenter {code} asked to be forgotten; not messaging them")
+        state["handled"][c["id"]] = {"at": now}
+        return False
+    already = code in sent
     if not already:
         try:
             requests.post(f"{API}/me/messages", params={"access_token": token}, timeout=60,
                           json={"recipient": {"comment_id": c["id"]},
-                                "message": {"text": random.choice(DM_TEXTS).format(url=lead["url"])}}
+                                "message": {"text": random.choice(DM_TEXTS).format(url=lead["url"])
+                                            + DM_FOOTER.format(kw=lead["keyword"])}}
                           ).raise_for_status()
-            sent[who] = now
-            print(f"  DM'd the plan to @{c['username']}")
+            sent[code] = now
+            print(f"  DM'd the plan to commenter {code}")
         except Exception as e:
-            print(f"  couldn't DM @{c['username']} ({e}); flagged for you")
+            print(f"  couldn't DM commenter {code} ({e}); flagged for you")
             entry.update(action="skip", needs_human=True, reason="asked for the plan but the DM failed; send it by hand")
             state["handled"][c["id"]] = {"at": now}
             state["log"].append(entry)
@@ -190,7 +218,7 @@ def handle_plan_request(token, state, post, c):
     try:
         ig("POST", f"{c['id']}/replies", token, message=reply)
     except RuntimeError as e:
-        print(f"  public reply failed for @{c['username']}: {e}")
+        print(f"  public reply failed for commenter {code}: {e}")
     entry["reply"] = reply
     state["handled"][c["id"]] = {"at": now}
     state["log"].append(entry)
@@ -232,6 +260,25 @@ def collect_comments(token, me, posts):
     return found
 
 
+def apply_forget_list(state, comments):
+    """People who asked (by DM) to be forgotten or left alone. Their usernames live only in the
+    private FORGET_USERS secret (comma-separated). Here they become one-way codes, their saved
+    entries are erased, and the robot never replies to or messages them again."""
+    names = {n.strip().lstrip("@").lower() for n in os.environ.get("FORGET_USERS", "").split(",") if n.strip()}
+    if not names:
+        return
+    forget = set(state.setdefault("forget", []))
+    for _, c, _ in comments:
+        if (c.get("username") or "").lower() in names:
+            forget.add(who(c))
+    if forget - set(state["forget"]):
+        print(f"  {len(forget - set(state['forget']))} more person(s) added to the forget list")
+    state["forget"] = sorted(forget)
+    for code in forget:
+        state.get("dm_sent", {}).pop(code, None)
+    state["log"] = [e for e in state["log"] if e.get("who") not in forget]
+
+
 def run_replies(token, state):
     posts = [p for p in load_posts() if p["status"].lower() == "published" and p["media_id"]]
     posts = posts[-LOOKBACK_POSTS:]
@@ -239,7 +286,9 @@ def run_replies(token, state):
         print("No published posts yet.")
         return None
     me = ig("GET", "me", token, fields="username,followers_count,media_count")
-    comments = [x for x in collect_comments(token, me["username"], posts) if x[1]["id"] not in state["handled"]]
+    everything = collect_comments(token, me["username"], posts)
+    apply_forget_list(state, everything)
+    comments = [x for x in everything if x[1]["id"] not in state["handled"]]
     print(f"{len(comments)} new comment(s) to look at.")
     if not comments:
         return me
@@ -251,28 +300,36 @@ def run_replies(token, state):
         if replied >= MAX_REPLIES_PER_RUN:
             print("  reached the reply limit for this run; the rest wait for the next run.")
             break
+        if who(c) in state.get("forget", []):  # asked to be left alone / have their data deleted
+            state["handled"][c["id"]] = {"at": datetime.now(TZ).isoformat(timespec="seconds")}
+            continue
         if wants_plan(c.get("text", "")):
             if handle_plan_request(token, state, post, c):
                 replied += 1
             continue
         d = decide(client, post, c)
+        if d.get("reason") not in REPLY_TOOL["input_schema"]["properties"]["reason"]["enum"]:
+            d["reason"] = "other"  # free text could repeat someone's personal details
+        text = c.get("text", "")
         entry = {"at": datetime.now(TZ).isoformat(timespec="seconds"), "post": post["id"],
-                 "user": c["username"], "comment": c.get("text", "")[:300], "action": d["action"],
+                 "cid": c["id"], "who": who(c), "action": d["action"],
                  "reply": d.get("reply", ""), "needs_human": bool(d.get("needs_human")),
-                 "reason": d.get("reason", "")}
+                 "reason": d.get("reason", ""),
+                 # a normal question that could become an anonymous "a follower asked" post
+                 "question": d["action"] == "reply" and "?" in text and len(text) >= 15}
         if d["action"] == "reply":
             if DRY_RUN:
-                print(f"  would reply to @{c['username']}: {d['reply']}")
+                print(f"  would reply to comment {c['id']}: {d['reply']}")
                 continue
             try:
                 ig("POST", f"{c['id']}/replies", token, message=d["reply"])
                 replied += 1
-                print(f"  replied to @{c['username']}: {d['reply']}")
+                print(f"  replied to comment {c['id']}: {d['reply']}")
             except RuntimeError as e:
-                print(f"  reply failed for @{c['username']}: {e}")
+                print(f"  reply failed for comment {c['id']}: {e}")
                 continue
         else:
-            print(f"  skipped @{c['username']} ({d.get('reason', '')})")
+            print(f"  skipped comment {c['id']} ({d.get('reason', '')})")
         if not DRY_RUN:
             state["handled"][c["id"]] = {"at": entry["at"]}
             state["log"].append(entry)
@@ -497,16 +554,30 @@ def write_summary(token, state, me):
     replied = [e for e in recent if e["action"] == "reply"]
     dms = [e for e in recent if e["action"] == "dm"]
     lines.append(f"## Comments (last 24 hours): {len(recent)} new, {len(replied)} answered by the robot")
+    links, hooks = {}, {p["id"]: p["hook"] for p in posts}
+
+    def post_link(pid):
+        """The post's Instagram link (no names or comment text: this summary is public)."""
+        if pid not in links:
+            mid = next((p["media_id"] for p in posts if p["id"] == pid), "")
+            try:
+                links[pid] = ig("GET", mid, token, fields="permalink").get("permalink", "") if mid else ""
+            except Exception:
+                links[pid] = ""
+        hook = hooks.get(pid, "a post")
+        return f"[{hook}]({links[pid]})" if links[pid] else hook
+
     if needs:
-        lines += ["", "### 👉 Needs you"]
-        lines += [f"- @{e['user']}: \"{e['comment']}\" ({e['reason']})" for e in needs]
+        lines += ["", "### 👉 Needs you (open the post in Instagram to see the comment)"]
+        lines += [f"- {post_link(e['post'])}: {e['reason']}" for e in needs]
     if dms:
-        lines += ["", f"### 📩 Free plan sent to {len(dms)} people today", "  ".join(f"@{e['user']}" for e in dms)]
+        lines += ["", f"### 📩 Free plan sent to {len(dms)} people today"]
         lines += [f"_Total people who've asked for the plan: {len(state.get('dm_sent', {}))}_"]
     if replied:
         lines += ["", "### Robot replies"]
-        lines += [f"- @{e['user']}: \"{e['comment']}\"  \n  ↳ {e['reply']}" for e in replied]
-    lines += ["", "Check your Instagram DMs too. The robot doesn't read or answer those."]
+        lines += [f"- on {post_link(e['post'])}: \"{e['reply']}\"" for e in replied]
+    lines += ["", "Check your Instagram DMs too. The robot doesn't read or answer those. "
+              "If someone DMs \"delete\" or asks to be left alone, tell Claude and they'll be forgotten."]
 
     if now.weekday() == 6:  # Sunday
         lines += week_in_review(token, posts, now, history)

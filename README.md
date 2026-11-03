@@ -148,6 +148,17 @@ own commits count as activity, so this normally isn't an issue.
 
 ## Keeping it legal and above board
 
+- **Respecting followers.** This repo, its Action logs and the summary issues are public, so
+  the robot never saves or prints anyone's username or comment. People are kept only as
+  one-way codes, comments only by ID, for 30 days. The summary links to the post instead of
+  quoting anyone. Follower questions become anonymous "A follower asked" posts; nobody is
+  tagged. Replies never pretend to be a person; "is this a bot?" is flagged for you to answer.
+  The plan DM says it's automatic and is sent once per person, ever.
+- **"Delete" or "leave me alone" requests.** Add their username to the `FORGET_USERS` secret
+  (comma-separated; secrets are private). The next comment run erases their saved codes and
+  the robot never replies to or messages them again. The privacy policy promises this within
+  30 days.
+
 - **Original content only.** Claude writes original posts. Don't add other creators'
   content, photos or videos.
 - **Sponsored posts are posted by you, by hand.** The bot never posts ads. When a brand
