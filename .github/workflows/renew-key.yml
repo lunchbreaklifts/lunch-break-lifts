@@ -27,6 +27,9 @@ jobs:
         env:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           THREADS_TOKEN: ${{ secrets.THREADS_TOKEN }}
+          PINTEREST_APP_ID: ${{ secrets.PINTEREST_APP_ID }}
+          PINTEREST_APP_SECRET: ${{ secrets.PINTEREST_APP_SECRET }}
+          PINTEREST_REFRESH_TOKEN: ${{ secrets.PINTEREST_REFRESH_TOKEN }}
           GH_TOKEN: ${{ secrets.GH_SECRETS_TOKEN }}
         run: |
           set -euo pipefail
@@ -44,4 +47,13 @@ jobs:
               gh secret set THREADS_TOKEN --repo "${GITHUB_REPOSITORY}" --body "${NEW_TH}"
               echo "THREADS_TOKEN secret updated."
             } || echo "Threads key renewal failed; Instagram key is still fine."
+          fi
+          if [ -n "${PINTEREST_REFRESH_TOKEN}" ]; then
+            NEW_PIN="$(python pinterest.py --refresh)" && {
+              if [ -n "${NEW_PIN}" ]; then
+                echo "::add-mask::${NEW_PIN}"
+                gh secret set PINTEREST_REFRESH_TOKEN --repo "${GITHUB_REPOSITORY}" --body "${NEW_PIN}"
+                echo "PINTEREST_REFRESH_TOKEN secret updated."
+              fi
+            } || echo "Pinterest key renewal failed; Instagram key is still fine."
           fi
