@@ -4,8 +4,10 @@ name: Daily post
 # Also runnable by hand from the Actions tab. At most posts_per_day posts, at least 4h apart.
 on:
   schedule:
-    - cron: "43 18 * * *"   # lunch: ~11:43am MST / 12:43pm MDT (GitHub usually starts 30-45 min late)
-    - cron: "47 0 * * *"    # evening: ~5:47pm MST / 6:47pm MDT
+    # Checks every hour from about 9am to 9pm Denver time; publish.py posts when a slot is due.
+    # Slots are 12:00 and 18:00 until Instagram reports when followers are online (best_times.json).
+    - cron: "7 16-23 * * *"
+    - cron: "7 0-4 * * *"
   workflow_dispatch:
 
 permissions:

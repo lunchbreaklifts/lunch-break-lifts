@@ -40,6 +40,8 @@ jobs:
         run: python generate_ideas.py
 
       - name: Render slides
+        env:
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         run: python render_slides.py --stories --refresh-reels
 
       - name: Save to repo
