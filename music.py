@@ -7,7 +7,7 @@ song from music/ (Pixabay Content License, checked to have no Content ID registr
 added; see music/tracks.json) is mixed in. Instagram itself is unchanged.
 """
 
-import random
+import json
 import shutil
 import subprocess
 import tempfile
@@ -16,6 +16,7 @@ from pathlib import Path
 from common import ROOT
 
 MUSIC_DIR = ROOT / "music"
+USED = ROOT / "music_used.json"  # song -> last date used, so every song gets a turn before any repeats
 
 
 def tracks():
@@ -33,11 +34,18 @@ def duration(path):
 
 def with_music(video, post_id):
     """Return (path to a copy of `video` with a song mixed in, song file name), or (None, "")
-    if there are no songs or ffmpeg isn't available. The same post always gets the same song."""
+    if there are no songs or ffmpeg isn't available. Picks the song used longest ago (new songs
+    added to music/ go first), so the whole library rotates."""
     songs = tracks()
     if not songs or not shutil.which("ffmpeg"):
         return None, ""
-    song = random.Random(post_id).choice(songs)
+    try:
+        used = json.loads(USED.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        used = {}
+    song = min(songs, key=lambda p: (used.get(p.name, ""), p.name))
+    used[song.name] = post_id
+    USED.write_text(json.dumps(used, indent=1), encoding="utf-8")
     length = duration(video) or 30.0
     fade_at = max(0.0, length - 1.2)
     out = Path(tempfile.mkdtemp()) / "reel_music.mp4"
