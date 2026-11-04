@@ -44,8 +44,9 @@ def page_token(token, page_id=None):
         return token
 
 
-def share_reel(video_url, description, token, page_id=None, wait_tries=60):
-    """Upload the hosted MP4 as a Reel on the Page. Returns the Facebook video ID."""
+def share_reel(video_url, description, token, page_id=None, wait_tries=60, local_file=None):
+    """Upload the MP4 as a Reel on the Page (from the local file if given, otherwise Facebook
+    fetches it from video_url). Returns the Facebook video ID."""
     page_id = page_id or CONFIG.get("facebook_page_id", "")
     if not page_id:
         raise RuntimeError('no "facebook_page_id" in config.json')
@@ -55,8 +56,13 @@ def share_reel(video_url, description, token, page_id=None, wait_tries=60):
                                  json={"upload_phase": "start", "access_token": token}, timeout=60), "start")
     video_id = start["video_id"]
 
-    _check(requests.post(f"{RUPLOAD}/{video_id}",
-                         headers={"Authorization": f"OAuth {token}", "file_url": video_url}, timeout=120), "upload")
+    if local_file:
+        data = open(local_file, "rb").read()
+        _check(requests.post(f"{RUPLOAD}/{video_id}", data=data, timeout=300, headers={
+            "Authorization": f"OAuth {token}", "offset": "0", "file_size": str(len(data))}), "upload")
+    else:
+        _check(requests.post(f"{RUPLOAD}/{video_id}",
+                             headers={"Authorization": f"OAuth {token}", "file_url": video_url}, timeout=120), "upload")
 
     for _ in range(wait_tries):  # 5 seconds each
         status = _check(requests.get(f"{GRAPH}/{video_id}",

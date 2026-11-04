@@ -254,8 +254,17 @@ def main():
     first_comment(ig, post, media_id)
     share_to_story(ig, post, base)
     if reel_url:
-        share_to_facebook(post, reel_url, caption)
-        share_to_youtube(post, reel_file, caption)
+        # Instagram's song doesn't come along, so the other copies get a royalty-free one mixed in.
+        mixed, song = None, ""
+        try:
+            from music import with_music
+            mixed, song = with_music(reel_file, post["id"])
+            if mixed:
+                print(f"    music for Facebook/YouTube: {song}")
+        except Exception as e:
+            print(f"    no music for Facebook/YouTube ({e})")
+        share_to_facebook(post, reel_url, caption, mixed)
+        share_to_youtube(post, mixed or reel_file, caption)
     share_to_threads(post, urls[0])
     share_to_pinterest(post, urls[0], reel_file if reel_url else None)
     save_posts(rows)  # keep the Facebook / Threads / YouTube / Pinterest IDs too
@@ -337,14 +346,14 @@ def publish_reel_with_music(user_id, post, reel_url, caption, cover_url, trial=F
     return media_id
 
 
-def share_to_facebook(post, reel_url, caption):
+def share_to_facebook(post, reel_url, caption, local_file=None):
     """Also post the Reel on the Facebook Page. Never blocks the Instagram post."""
     token = os.environ.get("FB_PAGE_TOKEN", "").strip()
     if not token or not CONFIG.get("facebook_reels", True):
         return
     try:
         from facebook import share_reel
-        vid = share_reel(reel_url, caption, token)
+        vid = share_reel(reel_url, caption, token, local_file=local_file)
         post["facebook_id"] = vid
         print(f"    shared to Facebook ({vid})")
     except Exception as e:

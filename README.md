@@ -35,6 +35,8 @@ Fully automated content pipeline running free on GitHub Actions:
 - **Replying to @you:** real follower questions from comments become posts that tag them.
 - **Replies everywhere:** the same comment replies also run on the Facebook, Threads and
   YouTube copies (where a key has reply permission). Plan requests there get the link.
+- **Music on YouTube and Facebook:** Instagram's trending song can't be carried over, so those
+  copies get a royalty-free song from `music/` (Pixabay license, listed in `music/tracks.json`).
 - **Report page:** https://lunchbreaklifts.github.io/lunch-break-lifts/report/ is rebuilt every
   night: followers, views per post, top posts, and what's working. Only the page's own numbers.
 - **Every Wednesday:** the Instagram and Threads keys are renewed automatically.
