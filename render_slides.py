@@ -78,9 +78,13 @@ def cover_slide(hook, swipe=True, big=False):
 
 
 def body_slide(text, index, total):
+    # Short lines get big, bold type so they read in a glance on a phone (shrinks to fit if needed).
+    words = len(text.split())
+    size = ' style="font-size:100px;font-weight:700;line-height:1.15"' if words <= 10 else (
+        ' style="font-size:80px;font-weight:600;line-height:1.2"' if words <= 18 else "")
     return page(f"""
       <div class="top"><span>{html.escape(CONFIG['page_name'].upper())}</span><span class="num">{index:02d}/{total:02d}</span></div>
-      <div class="main"><div class="bar"></div><div class="body">{html.escape(text)}</div></div>
+      <div class="main"><div class="bar"></div><div class="body"{size}>{html.escape(text)}</div></div>
       <div class="bottom"><span>{html.escape(CONFIG['handle'])}</span><span class="swipe">&rarr;</span></div>
     """)
 
