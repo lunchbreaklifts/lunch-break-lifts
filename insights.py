@@ -26,7 +26,9 @@ API = f"https://graph.instagram.com/{CONFIG.get('instagram_api_version', 'v23.0'
 TZ = ZoneInfo(CONFIG.get("timezone", "America/Denver"))
 STATS_CSV = ROOT / "stats.csv"
 METRICS = ["reach", "views", "likes", "comments", "shares", "saved"]
-STAT_FIELDS = ["id", "media_id", "format", "hook", "published_at", "checked_at"] + METRICS + ["score"]
+WATCH = "ig_reels_avg_watch_time"  # Reels only, in milliseconds
+STAT_FIELDS = (["id", "media_id", "format", "style", "hook", "published_at", "checked_at"] + METRICS
+               + ["avg_watch_s", "score"])
 
 
 def score(row):
@@ -51,10 +53,14 @@ def fetch(media_id, token):
         return out
 
     try:
+        return ask(METRICS + [WATCH])
+    except RuntimeError:
+        pass
+    try:
         return ask(METRICS)
     except RuntimeError as first_error:
         out = {}
-        for m in METRICS:
+        for m in METRICS + [WATCH]:
             try:
                 out.update(ask([m]))
             except RuntimeError:
@@ -100,12 +106,16 @@ def main():
             print(f"  couldn't get stats for [{p['id']}]: {e}")
             continue
         row = {"id": p["id"], "media_id": p["media_id"], "format": p.get("format", ""),
-               "hook": p["hook"], "published_at": p["published_at"], "checked_at": now}
+               "style": p.get("style", ""), "hook": p["hook"], "published_at": p["published_at"],
+               "checked_at": now}
         row.update({k: m.get(k, 0) for k in METRICS})
+        if m.get(WATCH):
+            row["avg_watch_s"] = round(float(m[WATCH]) / 1000, 1)
         row["score"] = score(row)
         stats[p["id"]] = row
         updated += 1
-        print(f"  [{p['id']}] reach {row['reach']}, saves {row['saved']}, shares {row['shares']} -> score {row['score']}")
+        watch = f", watched {row['avg_watch_s']}s" if row.get("avg_watch_s") else ""
+        print(f"  [{p['id']}] reach {row['reach']}, saves {row['saved']}, shares {row['shares']}{watch} -> score {row['score']}")
 
     if updated:
         save_stats(stats)

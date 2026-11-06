@@ -53,6 +53,11 @@ def voice_problems(post):
         problems.append("emoji on a slide")
     if text.count("!") > 2:
         problems.append("too many exclamation points")
+    limit = 18 if post.get("style") == "workout" else 12
+    if any(len(sl.split()) > limit + 3 for sl in post.get("slides", [])):
+        problems.append(f"slide over {limit} words (Reels must read in a glance)")
+    if len(post.get("hook", "").split()) > (12 if post.get("style") == "workout" else 9):
+        problems.append("hook too long")
     own = CONFIG.get("handle", "").lstrip("@").lower()
     if any(m.lower() != own for m in re.findall(r"@([A-Za-z0-9_.]+)", text)):
         problems.append("tags or names someone (posts never name followers)")
@@ -76,9 +81,9 @@ POST_TOOL = {
                         "slides": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "minItems": 3,
-                            "maxItems": 5,
-                            "description": "Body slides after the cover. Each max 22 words, punchy. One idea per slide.",
+                            "minItems": 1,
+                            "maxItems": 4,
+                            "description": "Body slides after the cover. quick tip / relatable: 1-2 slides, max 12 words each. workout: 2-4 slides, max 18 words each. One idea per slide, readable in a glance.",
                         },
                         "caption": {
                             "type": "string",
@@ -96,12 +101,17 @@ POST_TOOL = {
                             "items": {"type": "string"},
                             "description": "Exact names, from the exercise list, of every exercise this post mentions. Empty if none.",
                         },
+                        "style": {
+                            "type": "string",
+                            "enum": ["quick tip", "relatable", "workout"],
+                            "description": "Which format this post is (see the mix in the instructions).",
+                        },
                         "reply_to": {
                             "type": "string",
                             "description": "Only for posts answering a follower question: the word follower. Otherwise empty.",
                         },
                     },
-                    "required": ["hook", "slides", "caption", "hashtags", "exercises"],
+                    "required": ["hook", "slides", "caption", "hashtags", "exercises", "style"],
                 },
             }
         },
@@ -136,8 +146,8 @@ injury, or medical issues.
     lead = CONFIG.get("lead_magnet", {})
     if lead.get("enabled"):
         extra += f"""
-Most captions (not all) should end with a natural invite to comment {lead['keyword']} for the free
-30-day lunch break plan, e.g. "Comment {lead['keyword']} and I'll send you the full 30 days." Vary the wording.
+About a third of captions (mostly workout posts) can mention commenting {lead['keyword']} for the free
+30-day lunch break plan, placed before the closing question. Vary the wording.
 """
     return f"""You write Instagram carousel posts for the page "{CONFIG['page_name']}".
 
@@ -145,15 +155,21 @@ Niche: {CONFIG['niche']}
 Audience: {CONFIG['audience']}
 Tone: {CONFIG['tone']}
 
-Write {count} new carousel posts. Mix these formats across the batch:
-- A complete short workout (exercises, sets, reps, rest, total time)
-- Common mistakes and the fix
-- Myth vs. fact
-- A simple habit or scheduling strategy for busy people
-- A checklist or "save this" reference
+Write {count} new posts. They go out as short Reels, and people decide in about one second
+whether to keep watching. Data from this page: viewers scroll past long, text-heavy videos.
+So every post is SHORT: a hook plus 1-4 slides, readable at a glance, total 6-12 seconds.
 
-These go out as Reels: the cover is shown for under 2 seconds and each slide for about
-3 seconds, so slides must be short and punchy (max 22 words) and the hook must stop the scroll.
+Use this mix across the batch (set "style" on each):
+- About 40% "quick tip": hook + 1-2 slides. One specific, useful thing (a form fix, a swap,
+  a time saver). Example: hook "Your rows are all arms" / slide "Pull your elbow to your back pocket."
+- About 30% "relatable": hook + 1-2 slides. The funny, true side of working out on a lunch
+  break or at a desk job, the kind of thing people send to a coworker. Example: hook
+  "Me at 11:58 pretending to finish an email" / slide "Gym bag already in the car." Light,
+  never mean, never about bodies. Caption invites them to tag or send it to a work friend.
+- About 30% "workout": hook + 2-4 slides. A complete short workout or "save this" reference,
+  tight: exercise, sets x reps on one line each.
+
+Hooks: max 8 words for quick tip and relatable, max 12 for workout. Make them land in one second.
 
 Search (Instagram search works like Google now):
 - The FIRST LINE of every caption must read naturally AND contain a phrase people actually
@@ -177,7 +193,9 @@ Voice (this matters most, the posts must not read like AI wrote them):
 - Never use: em dashes, "unlock", "elevate", "game-changer", "level up", "dive in", "journey",
   "crush it", "transform", "ultimate", "Here's the thing", "Let's be real", "It's not just X, it's Y",
   "Whether you're X or Y", or lists of exactly three adjectives.
-- Captions: at most one emoji, no motivational poster lines, no "Save this!" in every caption. Vary how captions end.
+- Captions: at most one emoji, no motivational poster lines, no "Save this!" in every caption.
+- Every caption ends with ONE easy question people can answer in a word or two (an either/or,
+  "what time do you train?", "what's your go-to excuse?"). Vary them. Comments push Reels further.
 - Don't invent personal stories, results, or numbers about yourself or followers.
 
 Exercises: only use exercises from this list (from an open exercise database), and
@@ -198,6 +216,17 @@ def main():
         sys.exit("Set the ANTHROPIC_API_KEY environment variable first. See README.md.")
 
     rows = load_posts()
+    if "--fresh" in sys.argv:
+        # Replace queued regular posts with new ones (challenge posts and re-posts stay).
+        retired = 0
+        for r in rows:
+            if (r["status"].lower() in ("approved", "rendered", "draft") and not r.get("challenge_date")
+                    and not r.get("repost_of")):
+                r["status"] = "retired"
+                retired += 1
+        save_posts(rows)
+        sys.argv.remove("--fresh")
+        print(f"Retired {retired} queued posts; writing a fresh batch.")
     if len(sys.argv) > 1:
         count = int(sys.argv[1])
     else:
@@ -290,6 +319,7 @@ def main():
             "published_at": "",
             "media_id": "",
             "reply_to": (post.get("reply_to") or "").strip().lstrip("@"),
+            "style": post.get("style", ""),
         })
 
     if any(r["reply_to"] for r in new_rows):

@@ -39,6 +39,7 @@ def load():
         n = lambda k: int(st.get(k) or 0)
         rows.append({"id": pid, "hook": st.get("hook") or p.get("hook", ""), "when": when,
                      "format": st.get("format") or p.get("format") or "post", "audio": p.get("audio", ""),
+                     "style": p.get("style", ""), "watch": float(st.get("avg_watch_s") or 0),
                      "challenge": p.get("series") == "challenge",
                      **{k: n(k) for k in ("views", "reach", "likes", "comments", "shares", "saved")}})
     rows.sort(key=lambda r: r["when"])
@@ -115,6 +116,8 @@ def build():
     tiles = [("Followers", fol_now, f"{fol_now - base:+d} this week"),
              ("Posts this week", len(week), f"{sum(r['views'] for r in week):,} views total"),
              ("Avg views per Reel", avg(reels), f"{len(reels)} Reels so far"),
+             ("Avg watch time", f"{(sum(r['watch'] for r in reels if r['watch']) / max(1, len([r for r in reels if r['watch']]))):.1f}s",
+              "per Reel view. Higher = Instagram pushes it more"),
              ("Saves + shares", sum(r["saved"] + r["shares"] for r in rows), "all time, the growth signal")]
     tile_html = "".join(f"<div class='tile'><div class='k'>{k}</div><div class='v'>{v}</div>"
                         f"<div class='s'>{html.escape(s)}</div></div>" for k, v, s in tiles)
@@ -130,12 +133,17 @@ def build():
         compare("Format", "Reels", reels, "carousels", [r for r in judged if r["format"] != "reel"]),
         compare("Music", "song", [r for r in reels if r["audio"]], "no song", [r for r in reels if not r["audio"]]),
         compare("Time", "lunch", lunch, "evening", [r for r in judged if r not in lunch]),
+        compare("Style", "quick tip", [r for r in judged if r["style"] == "quick tip"],
+                "workout", [r for r in judged if r["style"] == "workout"]),
+        compare("Style", "relatable", [r for r in judged if r["style"] == "relatable"],
+                "workout", [r for r in judged if r["style"] == "workout"]),
         compare("Series", "challenge", [r for r in judged if r["challenge"]], "regular", [r for r in judged if not r["challenge"]]),
     ])) or "<tr><td colspan='3' class='muted'>Needs a few more posts to compare.</td></tr>"
 
     recent_html = "".join(
         f"<tr><td>{r['when']:%b %-d %-I%p}</td><td>{html.escape(r['hook'][:60])}</td><td>{r['views']}</td>"
-        f"<td>{r['likes']}</td><td>{r['saved']}</td></tr>" for r in reversed(rows[-10:]))
+        f"<td>{(str(r['watch']) + 's') if r['watch'] else '-'}</td><td>{r['likes']}</td><td>{r['saved']}</td></tr>"
+        for r in reversed(rows[-10:]))
 
     page = f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
@@ -147,7 +155,7 @@ font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;padding:20px 16px 48
 .wrap{{max-width:760px;margin:0 auto}} h1{{font-size:26px;margin:0}} .muted{{color:var(--muted)}}
 h2{{font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin:30px 0 10px}}
 .tiles{{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:18px}}
-@media(min-width:640px){{.tiles{{grid-template-columns:repeat(4,1fr)}}}}
+@media(min-width:640px){{.tiles{{grid-template-columns:repeat(5,1fr)}}}}
 .tile{{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}}
 .tile .k{{font-size:13px;color:var(--muted)}} .tile .v{{font-size:30px;font-weight:800;margin:2px 0}}
 .tile .s{{font-size:12px;color:var(--muted)}}
@@ -165,7 +173,7 @@ th{{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase}}
 <h2>Top 5 posts</h2><div class="card"><ol>{top_html}</ol></div>
 <h2>What's working (average views)</h2><div class="card"><table>{comp}</table>
 <p class="legend">Posts under 2 days old aren't counted yet.</p></div>
-<h2>Latest posts</h2><div class="card"><table><tr><th>When</th><th>Post</th><th>Views</th><th>Likes</th><th>Saves</th></tr>{recent_html}</table></div>
+<h2>Latest posts</h2><div class="card"><table><tr><th>When</th><th>Post</th><th>Views</th><th>Watched</th><th>Likes</th><th>Saves</th></tr>{recent_html}</table></div>
 </div></body></html>
 """
     OUT.parent.mkdir(exist_ok=True)

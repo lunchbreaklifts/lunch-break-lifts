@@ -457,7 +457,8 @@ def whats_working():
         rows.append({"hook": st.get("hook", ""), "views": int(st.get("views") or 0),
                      "slot": "lunch" if hour < 15 else "evening",
                      "music": bool(p.get("audio")), "format": st.get("format") or p.get("format") or "post",
-                     "challenge": p.get("series") == "challenge"})
+                     "challenge": p.get("series") == "challenge", "style": p.get("style", ""),
+                     "watch": float(st.get("avg_watch_s") or 0)})
     if len(rows) < 4:
         return []
 
@@ -480,10 +481,17 @@ def whats_working():
         compare("Format", "Reels", [r for r in rows if r["format"] == "reel"], "carousels", [r for r in rows if r["format"] != "reel"]),
         compare("Music", "with a song", [r for r in rows if r["format"] == "reel" and r["music"]], "no song", [r for r in rows if r["format"] == "reel" and not r["music"]]),
         compare("Time", "lunch", [r for r in rows if r["slot"] == "lunch"], "evening", [r for r in rows if r["slot"] == "evening"]),
+        compare("Style", "quick tips", [r for r in rows if r["style"] == "quick tip"], "workouts", [r for r in rows if r["style"] == "workout"]),
+        compare("Style", "relatable", [r for r in rows if r["style"] == "relatable"], "workouts", [r for r in rows if r["style"] == "workout"]),
         compare("Challenge", "challenge days", [r for r in rows if r["challenge"]], "regular tips", [r for r in rows if not r["challenge"]]),
     ):
         if line:
             out.append(line)
+    watched = [r for r in rows if r["watch"]]
+    if watched:
+        best = max(watched, key=lambda r: r["watch"])
+        out.append(f"- Watch time: avg **{sum(r['watch'] for r in watched) / len(watched):.1f}s** per view. "
+                   f"Best held: {best['hook']} ({best['watch']}s)")
     return out
 
 

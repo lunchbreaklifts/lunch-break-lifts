@@ -23,8 +23,8 @@ SLIDE_H = 1350
 FADE = 0.3
 FPS = 30
 ZOOM = 0.07  # how far each slide zooms over its time on screen (7%)
-VERSION = "5"  # footage style; bump to re-render queued Reels
-PLAIN_VERSION = "3"
+VERSION = "6"  # footage style; bump to re-render queued Reels
+PLAIN_VERSION = "4"
 PUNCH = 0.08   # first frame starts 8% zoomed in
 PUNCH_T = 0.4  # ...and settles to normal over this many seconds
 LOOP = 0.6     # seconds of hook at the end, so the replay is seamless
@@ -51,12 +51,13 @@ def zoom_to_loop(label_in, label_out):
 
 
 def reading_time(text, first=False, last=False):
+    """Seconds on screen: just long enough to read, never longer (viewers scroll fast)."""
     if first:
-        return 1.6
+        return 1.4
     if last:
-        return 1.6
+        return 1.2
     words = len(text.split())
-    return round(min(4.0, max(1.8, 0.9 + 0.11 * words)), 2)
+    return round(min(3.2, max(1.4, 0.7 + 0.1 * words)), 2)
 
 
 def make_reel(out_dir: Path, slides, durations):

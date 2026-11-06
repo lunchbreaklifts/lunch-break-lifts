@@ -85,11 +85,18 @@ def body_slide(text, index, total):
     """)
 
 
-def cta_slide():
+CTA_BY_STYLE = {
+    "relatable": "Send this to the coworker who needs it",
+    "quick tip": "Save it for your next lunch break",
+}
+
+
+def cta_slide(style=""):
+    line = CTA_BY_STYLE.get(style, CONFIG['cta_line'])
     return page(f"""
       <div class="top"><span>{html.escape(CONFIG['page_name'].upper())}</span></div>
       <div class="main"><div class="bar"></div>
-        <div class="cta">{html.escape(CONFIG['cta_line'])}</div>
+        <div class="cta">{html.escape(line)}</div>
         <div class="cta-sub">Follow <b>{html.escape(CONFIG['handle'])}</b> for more</div>
       </div>
       <div class="bottom"><span>{html.escape(CONFIG['handle'])}</span><span></span></div>
@@ -133,7 +140,7 @@ def render_overlays(tab, row, body, total, out_dir):
     """Same slides as the carousel, but with a see-through background, for laying over footage."""
     pages = [cover_slide(row["hook"], swipe=False, big=True)]
     pages += [body_slide(text, i + 2, total) for i, text in enumerate(body)]
-    pages.append(cta_slide())
+    pages.append(cta_slide(row.get("style", "")))
     paths = []
     for i, html_page in enumerate(pages, start=1):
         tab.set_content(html_page.replace("</head>", TRANSPARENT + "</head>"), wait_until="networkidle")
@@ -197,7 +204,7 @@ def main():
             total = len(body) + 2
             slides = [cover_slide(row["hook"])]
             slides += [body_slide(text, i + 2, total) for i, text in enumerate(body)]
-            slides.append(cta_slide())
+            slides.append(cta_slide(row.get("style", "")))
 
             out_dir = OUTPUT / row["id"]
             out_dir.mkdir(parents=True, exist_ok=True)
