@@ -31,11 +31,19 @@ STAT_FIELDS = (["id", "media_id", "format", "style", "hook", "published_at", "ch
                + ["avg_watch_s", "score"])
 
 
+def real_comments(row):
+    """Comments minus the robot's own first comment on each post."""
+    n = int(row.get("comments") or 0)
+    return max(0, n - 1) if CONFIG.get("first_comment", True) else n
+
+
 def score(row):
-    """Saves and shares matter most for growth, then comments, then likes. Views count a little
-    (every 20 views = 1 point) so early posts with no saves still rank sensibly."""
+    """Saves and shares matter most for growth, then real comments, then watch time (every
+    second people stay = 2 points), then likes. Views count a little (every 20 = 1 point)."""
     n = lambda k: int(row.get(k) or 0)
-    return n("saved") * 4 + n("shares") * 4 + n("comments") * 2 + n("likes") + n("views") // 20
+    watch = float(row.get("avg_watch_s") or 0)
+    return (n("saved") * 4 + n("shares") * 4 + real_comments(row) * 3 + round(watch * 2)
+            + n("likes") + n("views") // 20)
 
 
 def fetch(media_id, token):
@@ -172,15 +180,21 @@ def performance_notes(min_posts=4, age_days=2):
                 ripe.append(r)
         except (KeyError, ValueError):
             continue
+    reels = [r for r in ripe if "reel" in (r.get("format") or "")]
+    if len(reels) >= min_posts:  # every post is a Reel now, so compare like with like
+        ripe = reels
     if len(ripe) < min_posts:
         return ""
+    for r in ripe:
+        r["score"] = score(r)  # re-score older rows with the current formula
     ripe.sort(key=lambda r: int(r.get("score") or 0), reverse=True)
     k = min(3, len(ripe) // 2)
 
     def line(r):
-        fmt = f", {r['format']}" if r.get("format") else ""
-        return (f'- "{r["hook"]}" (reach {r.get("reach", 0)}, saves {r.get("saved", 0)}, '
-                f'shares {r.get("shares", 0)}{fmt})')
+        kind = r.get("style") or r.get("format") or ""
+        watch = f"watched {r['avg_watch_s']}s, " if r.get("avg_watch_s") else ""
+        return (f'- "{r["hook"]}" ({kind}: {watch}views {r.get("views", 0)}, real comments '
+                f'{real_comments(r)}, saves {r.get("saved", 0)}, shares {r.get("shares", 0)})')
 
     best = "\n".join(line(r) for r in ripe[:k])
     worst = "\n".join(line(r) for r in ripe[-k:])
@@ -191,6 +205,7 @@ Best performers:
 {best}
 Weakest performers:
 {worst}
+Watch time is the main signal at this stage: it's how long people stay before scrolling.
 Write more posts like the best ones (similar topics, hook styles, and formats) and fewer like
 the weakest. Don't copy the best hooks; find new angles in the same spirit."""
 
