@@ -20,7 +20,7 @@ from datetime import date, timedelta
 import anthropic
 
 import exercise_db
-from insights import performance_notes
+from insights import performance_notes, style_mix
 from common import CONFIG, ROOT, SLIDE_SEP, load_posts, save_posts
 
 HISTORY_LIMIT = 80  # past hooks shown to the model so it avoids repeats
@@ -120,7 +120,50 @@ POST_TOOL = {
 }
 
 
-def build_prompt(count, past_hooks, exercises, questions=None, window=""):
+JUDGE_TOOL = {
+    "name": "score_posts",
+    "description": "Score each candidate post.",
+    "input_schema": {
+        "type": "object",
+        "properties": {"scores": {"type": "array", "items": {"type": "object", "properties": {
+            "index": {"type": "integer"},
+            "score": {"type": "integer", "minimum": 1, "maximum": 10},
+            "why": {"type": "string", "description": "Under 12 words."}},
+            "required": ["index", "score"]}}},
+        "required": ["scores"],
+    },
+}
+
+
+def judge(client, model, posts):
+    """Have a strict editor score candidates; returns a score per post (5 if judging fails)."""
+    listing = "\n\n".join(
+        f"[{i}] ({p.get('style', '')}) HOOK: {p['hook']}\nSLIDES: " + " / ".join(p.get("slides", []))
+        + f"\nCAPTION START: {p.get('caption', '')[:160]}" for i, p in enumerate(posts))
+    prompt = f"""You're the toughest editor at a fitness Reels page for busy office workers. Each post
+below becomes a 5-10 second Reel. Score each 1-10 on how likely a stranger scrolling at lunch is to
+STOP, WATCH TO THE END, and SAVE or SEND it. Judge: does the hook land in one second, can every
+slide be read at a glance, is it specific and genuinely useful or genuinely funny, does it sound
+like a real person (not AI, not a fitness cliche), and would someone send it to a coworker.
+Be harsh: most posts are a 5 or 6. Only a post you'd bet on gets an 8+.
+
+{listing}
+
+Call score_posts with a score for every post."""
+    try:
+        resp = client.messages.create(model=model, max_tokens=6000, tools=[JUDGE_TOOL],
+                                      tool_choice={"type": "auto"},
+                                      messages=[{"role": "user", "content": prompt}])
+        block = next((b for b in resp.content if b.type == "tool_use"), None)
+        got = {int(s["index"]): int(s["score"]) for s in (block.input.get("scores", []) if block else [])}
+    except Exception as e:
+        print(f"  editor pass skipped ({e})")
+        got = {}
+    return [got.get(i, 5) for i in range(len(posts))]
+
+
+def build_prompt(count, past_hooks, exercises, questions=None, window="", mix=None):
+    mix = mix or {"quick tip": 40, "relatable": 30, "workout": 30}
     history = "\n".join(f"- {h}" for h in past_hooks) or "(none yet)"
     extra = ""
     if window:
@@ -160,13 +203,13 @@ whether to keep watching. Data from this page: viewers scroll past long, text-he
 So every post is SHORT: a hook plus 1-4 slides, readable at a glance, total 6-12 seconds.
 
 Use this mix across the batch (set "style" on each):
-- About 40% "quick tip": hook + 1-2 slides. One specific, useful thing (a form fix, a swap,
+- About {mix["quick tip"]}% "quick tip": hook + 1-2 slides. One specific, useful thing (a form fix, a swap,
   a time saver). Example: hook "Your rows are all arms" / slide "Pull your elbow to your back pocket."
-- About 30% "relatable": hook + 1-2 slides. The funny, true side of working out on a lunch
+- About {mix["relatable"]}% "relatable": hook + 1-2 slides. The funny, true side of working out on a lunch
   break or at a desk job, the kind of thing people send to a coworker. Example: hook
   "Me at 11:58 pretending to finish an email" / slide "Gym bag already in the car." Light,
   never mean, never about bodies. Caption invites them to tag or send it to a work friend.
-- About 30% "workout": hook + 2-4 slides. A complete short workout or "save this" reference,
+- About {mix["workout"]}% "workout": hook + 2-4 slides. A complete short workout or "save this" reference,
   tight: exercise, sets x reps on one line each.
 
 Hooks: max 8 words for quick tip and relatable, max 12 for workout. Make them land in one second.
@@ -250,6 +293,9 @@ def main():
     client = anthropic.Anthropic()
     exercise_list = exercise_db.format_for_prompt(sample)
 
+    writer = CONFIG.get("writer_model") or CONFIG.get("model", "claude-sonnet-5-5")
+    mix, tuned = style_mix()
+    print(f"Style mix this week: {mix}" + (" (tuned from watch time)" if tuned else " (default until there's data)"))
     perf = performance_notes()
     if perf:
         print("Using last weeks' performance to guide this batch.")
@@ -260,10 +306,10 @@ def main():
     window = f"between {today + timedelta(days=1):%B %-d} and {today + timedelta(days=8):%B %-d, %Y}"
 
     def ask(n, hooks_to_avoid, feedback=""):
-        prompt = build_prompt(n, hooks_to_avoid, exercise_list, questions, window) + perf + feedback
+        prompt = build_prompt(n, hooks_to_avoid, exercise_list, questions, window, mix) + perf + feedback
         for attempt in range(1, 4):
             response = client.messages.create(
-                model=CONFIG.get("model", "claude-sonnet-5-5"),
+                model=writer,
                 max_tokens=16000,
                 tools=[POST_TOOL],
                 tool_choice={"type": "auto"},
@@ -276,6 +322,8 @@ def main():
                 return block.input.get("posts", [])
         return []
 
+    final_count = count
+    count = min(count * 2, count + 12)  # write extra candidates; the editor keeps the best
     accepted, rejected_notes = [], []
     for round_no in range(1, MAX_ROUNDS + 1):
         needed = count - len(accepted)
@@ -304,6 +352,14 @@ def main():
 
     if not accepted:
         sys.exit("No posts passed the checks. Try running again.")
+    if len(accepted) > final_count:
+        scores = judge(client, writer, accepted)
+        ranked = sorted(zip(scores, range(len(accepted))), key=lambda t: (-t[0], t[1]))
+        keep = sorted(i for _, i in ranked[:final_count])
+        for sc, i in ranked[final_count:]:
+            print(f"  Editor cut ({sc}/10): {accepted[i]['hook']}")
+        print(f"Editor kept {final_count} of {len(accepted)} (scores {sorted(scores, reverse=True)[:final_count]})")
+        accepted = [accepted[i] for i in keep]
 
     status = "approved" if CONFIG.get("auto_approve") else "draft"
     new_rows = []

@@ -210,6 +210,34 @@ Write more posts like the best ones (similar topics, hook styles, and formats) a
 the weakest. Don't copy the best hooks; find new angles in the same spirit."""
 
 
+DEFAULT_MIX = {"quick tip": 40, "relatable": 30, "workout": 30}
+
+
+def style_mix(min_each=3, age_days=2):
+    """Share of next week's posts per style, tuned toward what people watch longest.
+    Needs at least `min_each` judged posts per style; otherwise keeps the default mix.
+    Every style keeps at least 15% so the page keeps testing (and can recover a style)."""
+    now = datetime.now(TZ)
+    posts = {p["id"]: p for p in load_posts()}
+    by_style = {k: [] for k in DEFAULT_MIX}
+    for r in load_stats().values():
+        style = r.get("style") or posts.get(r["id"], {}).get("style", "")
+        try:
+            old_enough = (now - datetime.fromisoformat(r["published_at"]).astimezone(TZ)).days >= age_days
+        except (KeyError, ValueError):
+            continue
+        if style in by_style and old_enough:
+            by_style[style].append(score(r))
+    if any(len(v) < min_each for v in by_style.values()):
+        return dict(DEFAULT_MIX), False
+    avg = {k: max(0.5, sum(v) / len(v)) for k, v in by_style.items()}
+    total = sum(avg.values())
+    mix = {k: max(15, min(60, round(100 * a / total))) for k, a in avg.items()}
+    top = max(mix, key=mix.get)  # make it add up to 100
+    mix[top] += 100 - sum(mix.values())
+    return mix, True
+
+
 if __name__ == "__main__":
     try:
         main()
