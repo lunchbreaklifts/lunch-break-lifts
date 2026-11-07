@@ -9,12 +9,16 @@ a different clip for each slide, and cached so a week's renders don't re-downloa
 """
 
 import hashlib
+import json
 import os
 import random
 import re
+from datetime import date, timedelta
 from pathlib import Path
 
 import requests
+
+from common import ROOT
 
 API = "https://api.pexels.com/videos/search"
 CACHE = Path(os.environ.get("RUNNER_TEMP", "/tmp")) / "lbl-footage"
@@ -99,14 +103,29 @@ def available():
     return bool(os.environ.get("PIXABAY_API_KEY", "").strip() or os.environ.get("PEXELS_API_KEY", "").strip())
 
 
+USED = ROOT / "footage_used.json"  # clip id -> date last used, so the same clip isn't reused within 30 days
+FRESH_DAYS = 30
+
+
+def _used():
+    try:
+        return json.loads(USED.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
 def clips_for(post, count, min_seconds):
-    """Return `count` local clip paths (may repeat if few results), or [] if footage isn't available."""
+    """Return `count` local clip paths (may repeat if few results), or [] if footage isn't available.
+    Clips used in the last 30 days are skipped when possible: Instagram ranks reused footage lower."""
     pix = os.environ.get("PIXABAY_API_KEY", "").strip()
     key = os.environ.get("PEXELS_API_KEY", "").strip()
     if not (pix or key):
         return []
     rng = random.Random(post.get("id", ""))
-    pool, seen = [], set()
+    used = _used()
+    cutoff = (date.today() - timedelta(days=FRESH_DAYS)).isoformat()
+    recent = {k for k, d in used.items() if d >= cutoff}
+    pool, stale, seen = [], [], set()
     for q in queries_for(post):
         try:
             if pix:
@@ -121,16 +140,22 @@ def clips_for(post, count, min_seconds):
         for vid, link in found:
             if vid not in seen:
                 seen.add(vid)
-                pool.append(link)
+                (stale if str(vid) in recent else pool).append((vid, link))
         if len(pool) >= count:
             break
+    pool += stale  # only fall back to recently used clips if there aren't enough fresh ones
     if not pool:
         return []
     out = []
+    today = date.today().isoformat()
     for i in range(count):
+        vid, link = pool[i % len(pool)]
         try:
-            out.append(download(pool[i % len(pool)]))
+            out.append(download(link))
         except Exception as e:
             print(f"    footage download failed: {e}")
             return []
+        used[str(vid)] = today
+    used = {k: d for k, d in used.items() if d >= cutoff}
+    USED.write_text(json.dumps(used, indent=1, sort_keys=True), encoding="utf-8")
     return out

@@ -92,14 +92,24 @@ POST_TOOL = {
                         "hashtags": {
                             "type": "array",
                             "items": {"type": "string"},
-                            "minItems": 5,
-                            "maxItems": 10,
-                            "description": "Relevant hashtags without the # symbol.",
+                            "minItems": 3,
+                            "maxItems": 5,
+                            "description": "3-5 relevant hashtags without the # symbol (Instagram allows 5 at most).",
                         },
                         "exercises": {
                             "type": "array",
                             "items": {"type": "string"},
                             "description": "Exact names, from the exercise list, of every exercise this post mentions. Empty if none.",
+                        },
+                        "part2": {
+                            "type": "object",
+                            "description": "Only for 2-part series posts: the second part, which goes out as the very next post.",
+                            "properties": {
+                                "hook": {"type": "string", "description": "Starts with 'Part 2:'. Max 9 words."},
+                                "slides": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 3},
+                                "caption": {"type": "string"},
+                            },
+                            "required": ["hook", "slides", "caption"],
                         },
                         "style": {
                             "type": "string",
@@ -213,13 +223,24 @@ Use this mix across the batch (set "style" on each):
   tight: exercise, sets x reps on one line each.
 
 Hooks: max 8 words for quick tip and relatable, max 12 for workout. Make them land in one second.
+Hook patterns that hold viewers (vary them): a specific situation plus a time limit ("Only 20
+minutes today?"), a warning ("Stop doing rows like this"), a number ("The 1 reason your back feels
+tight at 3pm"), myth vs fact ("Sweaty doesn't mean it worked"), or a relatable moment
+("Me at 11:58 pretending to finish an email"). Pay off the hook in the very first slide; don't make
+people wait.
+
+Series (exactly 1 or 2 posts in this batch): split one idea into 2 parts. Part 1 is a normal post
+whose hook ends with "(part 1)" and whose last slide sets up what's next without giving it away.
+Put part 2 in "part2" (its hook starts "Part 2:"). Part 2 goes out right after part 1, so people
+who liked part 1 follow to catch it. Good series: "3 desk stretches (part 1)" then "Part 2: the
+2 that fix your lower back".
 
 Search (Instagram search works like Google now):
 - The FIRST LINE of every caption must read naturally AND contain a phrase people actually
   type into search, e.g. "30 minute dumbbell workout", "lunch break workout", "workout at
   work", "quick upper body workout", "beginner kettlebell workout", "desk job back pain
   stretches". Write it like a person would, not a keyword list. Vary the phrase per post.
-- Hashtags: mix 2-3 broad (#workout), 3-4 mid (#lunchbreakworkout), 2-3 specific to the post.
+- Hashtags: 3-5 only (Instagram's limit is 5): 1 broad (#workout), 2 mid (#lunchbreakworkout), 1-2 specific to the post.
 
 Rules:
 - Original, specific, practical advice. No vague motivation filler.
@@ -364,6 +385,8 @@ def main():
     status = "approved" if CONFIG.get("auto_approve") else "draft"
     new_rows = []
     for post in accepted:
+        part2 = post.get("part2") or {}
+        series = "series" if part2.get("hook") and part2.get("slides") else ""
         new_rows.append({
             "id": f"{today:%Y%m%d}-{uuid.uuid4().hex[:4]}",
             "created": today.isoformat(),
@@ -376,7 +399,23 @@ def main():
             "media_id": "",
             "reply_to": (post.get("reply_to") or "").strip().lstrip("@"),
             "style": post.get("style", ""),
+            "series": "part1" if series else "",
         })
+        if series:
+            new_rows.append({
+                "id": f"{today:%Y%m%d}-{uuid.uuid4().hex[:4]}",
+                "created": today.isoformat(),
+                "status": status,
+                "hook": part2["hook"].strip(),
+                "slides": SLIDE_SEP.join(s.strip() for s in part2["slides"]),
+                "caption": part2.get("caption", "").strip() or post["caption"].strip(),
+                "hashtags": new_rows[-1]["hashtags"],
+                "published_at": "",
+                "media_id": "",
+                "reply_to": "",
+                "style": post.get("style", ""),
+                "series": "part2",
+            })
 
     if any(r["reply_to"] for r in new_rows):
         mark_featured(questions)

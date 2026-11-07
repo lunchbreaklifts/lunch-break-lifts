@@ -191,7 +191,8 @@ def main():
 
     base = image_base_url()
     urls = [f"{base}/{s.relative_to(ROOT).as_posix()}" for s in slides]
-    caption = f"{with_cta(post['caption'])}\n\n{post['hashtags']}"[:CAPTION_LIMIT]
+    tags = " ".join(post["hashtags"].split()[:5])  # Instagram allows 5 hashtags at most
+    caption = f"{with_cta(post['caption'])}\n\n{tags}"[:CAPTION_LIMIT]
     alts = alt_texts(post, len(slides))
 
     published_count = sum(1 for r in rows if r["status"].lower() == "published")
@@ -292,6 +293,7 @@ def pick_next(queue, now):
         return due[0]
     regular = [r for r in queue if not r.get("challenge_date")]
     return regular[0] if regular else None
+    # (a series part 2 is written right after its part 1, so first-in-first-out keeps them back to back)
 
 
 def with_cta(caption):
