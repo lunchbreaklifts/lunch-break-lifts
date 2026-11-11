@@ -133,6 +133,8 @@ def build():
         compare("Format", "Reels", reels, "carousels", [r for r in judged if r["format"] != "reel"]),
         compare("Music", "song", [r for r in reels if r["audio"]], "no song", [r for r in reels if not r["audio"]]),
         compare("Time", "lunch", lunch, "evening", [r for r in judged if r not in lunch]),
+        compare("Test", "loops", [r for r in judged if r["style"] == "loop"],
+                "other Reels", [r for r in reels if r["style"] != "loop"]),
         compare("Style", "quick tip", [r for r in judged if r["style"] == "quick tip"],
                 "workout", [r for r in judged if r["style"] == "workout"]),
         compare("Style", "relatable", [r for r in judged if r["style"] == "relatable"],

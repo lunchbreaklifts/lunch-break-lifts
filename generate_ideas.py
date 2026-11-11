@@ -53,6 +53,13 @@ def voice_problems(post):
         problems.append("emoji on a slide")
     if text.count("!") > 2:
         problems.append("too many exclamation points")
+    if post.get("style") == "loop":
+        if len(post.get("slides", [])) != 1:
+            problems.append("loop posts have exactly 1 slide (the punchline)")
+        elif len(f"{post.get('hook', '')} {post['slides'][0]}".split()) > 16:
+            problems.append("loop over 16 words total (it must read in 3 seconds)")
+        if post.get("part2"):
+            problems.append("loop posts can't be a series")
     limit = 18 if post.get("style") == "workout" else 12
     if any(len(sl.split()) > limit + 3 for sl in post.get("slides", [])):
         problems.append(f"slide over {limit} words (Reels must read in a glance)")
@@ -83,7 +90,7 @@ POST_TOOL = {
                             "items": {"type": "string"},
                             "minItems": 1,
                             "maxItems": 4,
-                            "description": "Body slides after the cover. quick tip / relatable: 1-2 slides, max 12 words each. workout: 2-4 slides, max 18 words each. One idea per slide, readable in a glance.",
+                            "description": "Body slides after the cover. loop: exactly 1 slide (the punchline). quick tip / relatable: 1-2 slides, max 12 words each. workout: 2-4 slides, max 18 words each. One idea per slide, readable in a glance.",
                         },
                         "caption": {
                             "type": "string",
@@ -113,7 +120,7 @@ POST_TOOL = {
                         },
                         "style": {
                             "type": "string",
-                            "enum": ["quick tip", "relatable", "workout"],
+                            "enum": ["loop", "quick tip", "relatable", "workout"],
                             "description": "Which format this post is (see the mix in the instructions).",
                         },
                         "reply_to": {
@@ -173,7 +180,7 @@ Call score_posts with a score for every post."""
 
 
 def build_prompt(count, past_hooks, exercises, questions=None, window="", mix=None):
-    mix = mix or {"quick tip": 40, "relatable": 30, "workout": 30}
+    mix = mix or {"loop": 30, "quick tip": 25, "relatable": 25, "workout": 20}
     history = "\n".join(f"- {h}" for h in past_hooks) or "(none yet)"
     extra = ""
     if window:
@@ -213,6 +220,11 @@ whether to keep watching. Data from this page: viewers scroll past long, text-he
 So every post is SHORT: a hook plus 1-4 slides, readable at a glance, total 6-12 seconds.
 
 Use this mix across the batch (set "style" on each):
+- About {mix.get("loop", 0)}% "loop": a 5-second Reel that plays on repeat. Hook = the setup, exactly 1 slide =
+  the punchline, 16 words total at most. It must be funnier or truer the second time, so people
+  watch it twice and send it to someone. Relatable desk-job and lunch-workout moments work best.
+  Examples: hook "Me telling my boss I'm grabbing lunch" / slide "The lunch: 4 sets of rows."
+  Hook "11:59 calendar check" / slide "Nobody book me. I'm benching." No advice, no "save this".
 - About {mix["quick tip"]}% "quick tip": hook + 1-2 slides. One specific, useful thing (a form fix, a swap,
   a time saver). Example: hook "Your rows are all arms" / slide "Pull your elbow to your back pocket."
 - About {mix["relatable"]}% "relatable": hook + 1-2 slides. The funny, true side of working out on a lunch
@@ -222,7 +234,7 @@ Use this mix across the batch (set "style" on each):
 - About {mix["workout"]}% "workout": hook + 2-4 slides. A complete short workout or "save this" reference,
   tight: exercise, sets x reps on one line each.
 
-Hooks: max 8 words for quick tip and relatable, max 12 for workout. Make them land in one second.
+Hooks: max 8 words for loop, quick tip and relatable, max 12 for workout. Make them land in one second.
 Hook patterns that hold viewers (vary them): a specific situation plus a time limit ("Only 20
 minutes today?"), a warning ("Stop doing rows like this"), a number ("The 1 reason your back feels
 tight at 3pm"), myth vs fact ("Sweaty doesn't mean it worked"), or a relatable moment

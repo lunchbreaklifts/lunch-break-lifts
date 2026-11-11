@@ -60,6 +60,60 @@ def reading_time(text, first=False, last=False):
     return round(min(3.2, max(1.4, 0.7 + 0.1 * words)), 2)
 
 
+def loop_seconds(hook, line=""):
+    """Length of a loop Reel: long enough to read once, short enough that most people see it twice."""
+    words = len(f"{hook} {line}".split())
+    return round(min(7.0, max(4.5, 2.5 + 0.18 * words)), 2)
+
+
+def video_seconds(row):
+    """Approximate length of a post's Reel, used to compare styles by share watched, not raw seconds."""
+    from common import split_slides
+    body = split_slides(row.get("slides", ""))[:8]
+    if row.get("style") == "loop":
+        return loop_seconds(row.get("hook", ""), body[0] if body else "")
+    durations = [reading_time(row.get("hook", ""), first=True)] + [reading_time(t) for t in body]
+    return total_seconds(durations + [reading_time("", last=True)])
+
+
+def make_loop_reel(out_dir: Path, overlay, clip, seconds):
+    """A short Reel that loops seamlessly: one clip with the text held on screen the whole time.
+    The clip's last moments crossfade back into its first frames, so the replay has no visible cut
+    and many viewers watch twice (rewatches count as watch time)."""
+    if not shutil.which("ffmpeg"):
+        return None
+    pad_y = (H - SLIDE_H) // 2
+    blend = 0.5
+    total = seconds
+    cmd = ["ffmpeg", "-y", "-loglevel", "error",
+           "-stream_loop", "-1", "-t", f"{total + blend:.2f}", "-i", str(clip),
+           "-loop", "1", "-t", f"{total + 1:.2f}", "-i", str(overlay),
+           "-f", "lavfi", "-t", f"{total:.2f}", "-i", "anullsrc=r=48000:cl=stereo"]
+    parts = [
+        f"[0:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps={FPS},"
+        f"eq=saturation=0.8,drawbox=x=0:y=0:w=iw:h=ih:color=black@0.55:t=fill,setsar=1,split[a][b]",
+        f"[a]trim=duration={total:.2f},setpts=PTS-STARTPTS[main]",
+        f"[b]trim=duration={blend:.2f},setpts=PTS-STARTPTS[head]",
+        # last `blend` seconds of the clip fade into its first frames: the end matches the start
+        f"[main][head]xfade=transition=fade:duration={blend:.2f}:offset={total - blend:.2f},"
+        f"trim=duration={total:.2f}[bg]",
+        f"[1:v]format=rgba,scale={W}:{SLIDE_H}[tx]",
+        f"[bg][tx]overlay=0:{pad_y}:shortest=1,format=yuv420p[v]",
+    ]
+    out_path = out_dir / "reel.mp4"
+    cmd += ["-filter_complex", ";".join(parts), "-map", "[v]", "-map", "2:a",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "24", "-maxrate", "4M", "-bufsize", "8M",
+            "-profile:v", "high", "-pix_fmt", "yuv420p", "-r", str(FPS), "-g", str(FPS * 2),
+            "-c:a", "aac", "-b:a", "128k", "-ar", "48000",
+            "-t", f"{total:.2f}", "-movflags", "+faststart", str(out_path)]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"    loop reel failed: {result.stderr.strip()[:300]}")
+        return None
+    (out_dir / "reel_version.txt").write_text(VERSION, encoding="utf-8")
+    return out_path
+
+
 def make_reel(out_dir: Path, slides, durations):
     """Build out_dir/reel.mp4 from the given slide images. Returns the path, or None if skipped."""
     if not shutil.which("ffmpeg"):

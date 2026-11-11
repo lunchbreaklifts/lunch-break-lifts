@@ -481,6 +481,7 @@ def whats_working():
         compare("Format", "Reels", [r for r in rows if r["format"] == "reel"], "carousels", [r for r in rows if r["format"] != "reel"]),
         compare("Music", "with a song", [r for r in rows if r["format"] == "reel" and r["music"]], "no song", [r for r in rows if r["format"] == "reel" and not r["music"]]),
         compare("Time", "lunch", [r for r in rows if r["slot"] == "lunch"], "evening", [r for r in rows if r["slot"] == "evening"]),
+        compare("Test", "loops", [r for r in rows if r["style"] == "loop"], "other Reels", [r for r in rows if r["format"] == "reel" and r["style"] != "loop"]),
         compare("Style", "quick tips", [r for r in rows if r["style"] == "quick tip"], "workouts", [r for r in rows if r["style"] == "workout"]),
         compare("Style", "relatable", [r for r in rows if r["style"] == "relatable"], "workouts", [r for r in rows if r["style"] == "workout"]),
         compare("Challenge", "challenge days", [r for r in rows if r["challenge"]], "regular tips", [r for r in rows if not r["challenge"]]),

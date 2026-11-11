@@ -210,7 +210,20 @@ Write more posts like the best ones (similar topics, hook styles, and formats) a
 the weakest. Don't copy the best hooks; find new angles in the same spirit."""
 
 
-DEFAULT_MIX = {"quick tip": 40, "relatable": 30, "workout": 30}
+DEFAULT_MIX = {"loop": 30, "quick tip": 25, "relatable": 25, "workout": 20}  # loop = new test (Nov 2026)
+
+
+def style_score(row, post):
+    """Like score(), but watch time counts as the share of the video watched (rewatches can push it
+    past 100%), so short loops and longer workouts are compared fairly."""
+    from reel import video_seconds
+    watch = float(row.get("avg_watch_s") or 0)
+    length = video_seconds({**post, "style": row.get("style") or post.get("style", "")}) if post else 0
+    if not length:
+        return score(row)
+    n = lambda k: int(row.get(k) or 0)
+    return (n("saved") * 4 + n("shares") * 4 + real_comments(row) * 3 + round(10 * watch / length)
+            + n("likes") + n("views") // 20)
 
 
 def style_mix(min_each=3, age_days=2):
@@ -227,7 +240,7 @@ def style_mix(min_each=3, age_days=2):
         except (KeyError, ValueError):
             continue
         if style in by_style and old_enough:
-            by_style[style].append(score(r))
+            by_style[style].append(style_score(r, posts.get(r["id"], {})))
     if any(len(v) < min_each for v in by_style.values()):
         return dict(DEFAULT_MIX), False
     avg = {k: max(0.5, sum(v) / len(v)) for k, v in by_style.items()}

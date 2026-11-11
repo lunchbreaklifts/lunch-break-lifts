@@ -24,7 +24,8 @@ from playwright.sync_api import sync_playwright
 from common import CONFIG, OUTPUT, ROOT, load_posts, save_posts, split_slides
 import os
 
-from reel import VERSION as REEL_VERSION, make_footage_reel, make_reel, reading_time, total_seconds
+from reel import (VERSION as REEL_VERSION, loop_seconds, make_footage_reel, make_loop_reel, make_reel,
+                  reading_time, total_seconds)
 from footage import clips_for
 
 WIDTH, HEIGHT = 1080, 1350
@@ -103,6 +104,18 @@ def cta_slide(style="", series=""):
         <div class="cta">{html.escape(line)}</div>
         <div class="cta-sub">Follow <b>{html.escape(CONFIG['handle'])}</b> for more</div>
       </div>
+      <div class="bottom"><span>{html.escape(CONFIG['handle'])}</span><span></span></div>
+    """)
+
+
+def loop_slide(hook, line=""):
+    """One card for a loop Reel: the setup big, the punchline under it. No page numbers or arrows,
+    nothing that says 'this ends', so the replay feels seamless."""
+    sub = (f'<div class="body" style="font-size:72px;font-weight:700;line-height:1.18;margin-top:44px;'
+           f'color:{B["accent"]}">{html.escape(line)}</div>') if line else ""
+    return page(f"""
+      <div class="top"><span>{html.escape(CONFIG['page_name'].upper())}</span></div>
+      <div class="main"><div class="hook" style="font-size:118px">{html.escape(hook)}</div>{sub}</div>
       <div class="bottom"><span>{html.escape(CONFIG['handle'])}</span><span></span></div>
     """)
 
@@ -239,7 +252,21 @@ def main():
                 durations.append(reading_time("", last=True))
                 frames = [out_dir / "reel_cover.jpg"] + sorted(out_dir.glob("slide_*.jpg"))[1:]
                 made = None
-                if use_footage:
+                if use_footage and row.get("style") == "loop":
+                    line = body[0] if body else ""
+                    secs = loop_seconds(row["hook"], line)
+                    clips = clips_for(row, 1, secs)
+                    if clips:
+                        tab.set_content(loop_slide(row["hook"], line).replace("</head>", TRANSPARENT + "</head>"),
+                                        wait_until="networkidle")
+                        tab.evaluate(FIT_JS)
+                        ov = out_dir / "overlay_loop.png"
+                        tab.screenshot(path=str(ov), type="png", omit_background=True)
+                        made = make_loop_reel(out_dir, ov, clips[0], secs)
+                        ov.unlink(missing_ok=True)
+                        if made:
+                            reel_note = f" + loop reel ({secs:.0f}s)"
+                if use_footage and not made:
                     clips = clips_for(row, len(durations), 3)
                     if clips:
                         overlays = render_overlays(tab, row, body, total, out_dir)
