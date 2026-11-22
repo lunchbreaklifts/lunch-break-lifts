@@ -180,7 +180,7 @@ Call score_posts with a score for every post."""
 
 
 def build_prompt(count, past_hooks, exercises, questions=None, window="", mix=None):
-    mix = mix or {"loop": 30, "quick tip": 25, "relatable": 25, "workout": 20}
+    mix = mix or {"loop": 35, "relatable": 30, "quick tip": 20, "workout": 15}
     history = "\n".join(f"- {h}" for h in past_hooks) or "(none yet)"
     extra = ""
     if window:

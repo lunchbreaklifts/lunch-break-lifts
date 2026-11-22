@@ -210,7 +210,7 @@ Write more posts like the best ones (similar topics, hook styles, and formats) a
 the weakest. Don't copy the best hooks; find new angles in the same spirit."""
 
 
-DEFAULT_MIX = {"loop": 30, "quick tip": 25, "relatable": 25, "workout": 20}  # loop = new test (Nov 2026)
+DEFAULT_MIX = {"loop": 35, "relatable": 30, "quick tip": 20, "workout": 15}  # Nov 19 review: relatable led on views, workout trailed; loop = new test
 
 
 def style_score(row, post):

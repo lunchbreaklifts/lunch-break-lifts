@@ -44,8 +44,9 @@
     "url": "https://lunchbreaklifts.github.io/lunch-break-lifts/plan/"
   },
   "challenge": {
-    "enabled": true,
-    "start": "2026-11-09"
+    "enabled": false,
+    "start": "2026-11-09",
+    "note": "Turned off Nov 19: Day posts averaged 55 views vs 77-91 for regular posts. Days already queued (through Day 15) still go out. The full 30 days stay in the free plan (comment LIFT)."
   },
   "post_slots": [
     "12:00",
