@@ -14,6 +14,9 @@
   },
   "18051182150822476": {
    "at": "2026-11-22T13:30:35-07:00"
+  },
+  "18388730845225955": {
+   "at": "2026-11-27T03:46:13-07:00"
   }
  },
  "log": [
@@ -64,6 +67,17 @@
    "reply": "Sent it to your DMs \ud83d\udce9",
    "needs_human": false,
    "reason": "asked for the free plan"
+  },
+  {
+   "at": "2026-11-27T03:46:13-07:00",
+   "post": "20261122-eade",
+   "cid": "18388730845225955",
+   "who": "b38e1797d9fae3d6",
+   "action": "reply",
+   "reply": "glad you like it! the whole workout's in the caption: two second hold up top, slow lower, 3 sets of 12 after leg day.",
+   "needs_human": false,
+   "reason": "thanks or compliment",
+   "question": false
   }
  ],
  "followers": {
@@ -94,7 +108,8 @@
   "2026-11-22": 14,
   "2026-11-23": 16,
   "2026-11-24": 16,
-  "2026-11-25": 16
+  "2026-11-25": 16,
+  "2026-11-27": 16
  },
  "dm_sent": {
   "08fc6a73b0a67896": "2026-11-02T14:01:37-07:00",
