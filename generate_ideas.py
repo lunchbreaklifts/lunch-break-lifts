@@ -393,6 +393,7 @@ def main():
             print(f"  Editor cut ({sc}/10): {accepted[i]['hook']}")
         print(f"Editor kept {final_count} of {len(accepted)} (scores {sorted(scores, reverse=True)[:final_count]})")
         accepted = [accepted[i] for i in keep]
+    accepted = spread_styles(accepted)
 
     status = "approved" if CONFIG.get("auto_approve") else "draft"
     new_rows = []
@@ -488,6 +489,24 @@ def mark_featured(questions):
         done = []
     done += [q["key"] for q in questions]
     FEATURED.write_text(json.dumps(done[-500:], indent=1), encoding="utf-8")
+
+
+def spread_styles(posts):
+    """Order the batch so the same style never goes out twice in a row when it can be avoided.
+    Nov 2026: four loop Reels posted back to back reached only 5-10 people each (no non-follower
+    reach at all), while the first loop, posted between other styles, reached 112. Same-looking
+    videos in a row get treated as repeats."""
+    from collections import defaultdict
+    groups = defaultdict(list)
+    for p in posts:
+        groups[p.get("style", "")].append(p)
+    out, last = [], None
+    while any(groups.values()):
+        options = sorted((k for k, v in groups.items() if v), key=lambda k: -len(groups[k]))
+        pick = next((k for k in options if k != last), options[0])
+        out.append(groups[pick].pop(0))
+        last = pick
+    return out
 
 
 # ---------------------------------------------------------------- 30-day challenge
